@@ -17,6 +17,10 @@
     mpv
     ffmpeg
 
+    # Claude Desktop — paket tanımı ../../pkgs/claude-desktop,
+    # overlay modules/nixos/claude-desktop.nix'te.
+    claude-desktop
+
     # Firefox burada değil: politikalar ve eklentilerle birlikte
     # modules/nixos/firefox.nix içinde tanımlı.
     #

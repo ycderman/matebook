@@ -20,6 +20,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
+
+    # Cinevara: yerel klondan (~/Projects/Cinevara) — geliştirme sürerken
+    # commit'lenmemiş değişiklikler de her rebuild'de dahil olsun diye path:.
+    cinevara.url = "path:/home/can/Projects/Cinevara";
   };
 
   outputs =

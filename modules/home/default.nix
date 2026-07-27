@@ -7,6 +7,7 @@
     ./nix-shell-fix.nix
     ./git.nix
     ./plasma.nix
+    ./cinevara.nix
   ];
 
   home.username = "can";
