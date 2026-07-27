@@ -428,6 +428,11 @@ Türkçe kalmış, `C.UTF-8` yalnızca derleme ortamının içine verilmiş deme
   (yukarıdaki kontrol).
 - **Panelde `showdesktop` yok, pager de çıkarıldı** — uygulama menüsünden sonraki
   ilk ikonun Konsole olması için. Masaüstleri arası geçiş `Meta+1..4`.
+- **`can` için parolasız sudo** — grup geneli `wheelNeedsPassword = false` yerine
+  `security.sudo.extraRules` ile tek kullanıcıya bağlandı; wheel grubunun genel
+  kuralı parolalı kaldı. Nixpkgs'te wheel kuralı `mkOrder 600`, kullanıcı
+  kuralları varsayılan 1000 ile geldiği için bizimki sudoers'a sonra yazılıyor
+  ve son eşleşen kural kazandığından `NOPASSWD` geçerli oluyor.
 
 ## Kaynaklar
 
