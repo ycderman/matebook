@@ -16,7 +16,7 @@
     # Medya (iHD / VA-API üzerinden donanım hızlandırmalı)
     mpv
     ffmpeg
-
+    vlc
     # Claude Desktop — paket tanımı ../../pkgs/claude-desktop,
     # overlay modules/nixos/claude-desktop.nix'te.
     claude-desktop

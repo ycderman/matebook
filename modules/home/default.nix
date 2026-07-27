@@ -8,6 +8,7 @@
     ./git.nix
     ./plasma.nix
     ./cinevara.nix
+    ./mpv.nix
   ];
 
   home.username = "can";
