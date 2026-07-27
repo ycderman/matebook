@@ -57,6 +57,7 @@ configuration independent from device changes."*
 ```
 nixos-config/
 ├── flake.nix                    # inputs: nixpkgs-unstable, home-manager, plasma-manager
+├── flake.lock                   # test edilmiş girdi sürümleri (depoya işlendi)
 ├── hosts/
 │   └── matebook/
 │       ├── default.nix          # hostname + stateVersion, modülleri toplar
@@ -211,18 +212,146 @@ Dosya yoksa o girdi hiç üretilmiyor (`lib.optionalAttrs` + `builtins.pathExist
 yani derleme kırılmaz — dosyayı ekleyip `rebuild` dediğinde eklenti kendiliğinden
 gelir. Flake yalnızca git'in izlediği dosyaları gördüğü için `git add` şart.
 
-## Kurulum
+## Doğrulama durumu
 
-> **UYARI:** Aşağıdaki adımlar `/dev/nvme0n1` diskini tamamen siler — mevcut Arch
-> kurulumu (btrfs `archlinux` bölümü) dahil. Önce yedek al.
+Bu yapılandırma gerçek `nix` ile değerlendirildi — tahmin değil, ölçüm:
 
-USB'deki NixOS minimal ISO ile UEFI modunda başlat, sonra `sudo -i`.
+```
+$ nix eval github:ycderman/matebook#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
+"/nix/store/p0s0jsxm0qvnz7s6zmwf1fdmqqc2b9rn-nixos-system-matebook-26.11.20260726.624af66.drv"
 
-### 1. Ağ
+$ nix build --dry-run github:ycderman/matebook#nixosConfigurations.matebook.config.system.build.toplevel
+these 388 derivations will be built            ← hepsi systemd unit / udev kuralı gibi
+                                                 önemsiz yapılandırma dosyaları
+these 1714 paths will be fetched (4.9 GiB download, 13.0 GiB unpacked)
+```
 
-Kablolu bağlantı otomatik gelir. Wi-Fi için ISO'daki `wpa_cli` ya da `nmtui` kullan.
+- Sıfır hata, sıfır kullanımdan kaldırma uyarısı.
+- Ağır hiçbir paket kaynaktan derlenmiyor; her şey resmi ikili önbellekten geliyor.
+- `flake.lock` depoya işlendi, yani kurulumda tam olarak bu sürümler kullanılacak
+  (nixpkgs `624af66`, home-manager `cbb7767`, plasma-manager `c551f06`).
 
-### 2. Bölümleme (GPT, 2 GiB ESP + kalanı ext4)
+Bu doğrulama sırasında bulunup düzeltilen gerçek hatalar:
+
+| Hata | Düzeltme |
+|---|---|
+| `programs.plasma.workspace.clickItemTo = "click"` geçersiz | `"select"` (geçerli değerler: `open`, `select`) |
+| `glxinfo` paketi yeniden adlandırılmış | `mesa-demos` |
+| `noto-fonts-emoji` yeniden adlandırılmış | `noto-fonts-color-emoji` |
+| `programs.git.{userName,userEmail,extraConfig}` taşınmış | `programs.git.settings` altında |
+| `nixfmt-rfc-style` artık gereksiz | `nixfmt` |
+
+Doğrulamanın **kapsamadığı** şey: çalışma zamanı davranışı. Değerlendirme,
+`plasma-login-manager`'ın gerçekten açılacağını ya da `huawei-wmi` udev
+kuralının pil eşiğini yazacağını kanıtlamaz — onlar ancak kurulumdan sonra
+"Kurulum sonrası doğrulama" bölümündeki komutlarla görülür.
+
+---
+
+# Kurulum Kılavuzu
+
+Sıfırdan, adım adım. NixOS'a yeni başlayanlar için her komutun ne yaptığı yazılı.
+
+> **UYARI:** Bu kılavuz `/dev/nvme0n1` diskini **tamamen siler** — mevcut Arch
+> kurulumu (btrfs `archlinux` bölümü) ve içindeki her şey gider. Devam etmeden
+> önce ev dizinini harici bir diske yedekle:
+> ```bash
+> rsync -aAXv --exclude={.cache,.local/share/Trash} /home/can/ /mnt/yedek/can/
+> ```
+> Ayrıca şunları ayrıca not et: Wi-Fi parolaları, SSH özel anahtarları
+> (`~/.ssh/`), tarayıcı profili, GPG anahtarları.
+
+## Adım 0 — Hazırlık
+
+**Gerekenler**
+
+- NixOS **minimal ISO** yazılmış bir USB bellek (en az 2 GB)
+- İnternet: kurulum sırasında ~5 GB indirilecek, kablolu bağlantı varsa tercih et
+- Şarj adaptörü takılı olsun
+
+**ISO'yu USB'ye yazma** (hâlâ Arch'tayken):
+
+```bash
+curl -LO https://channels.nixos.org/nixos-unstable/latest-nixos-minimal-x86_64-linux.iso
+lsblk                                    # USB'nin hangi aygıt olduğunu doğrula
+sudo dd if=latest-nixos-minimal-x86_64-linux.iso of=/dev/sdX bs=4M status=progress conv=fsync
+```
+
+`of=` hedefini iki kere kontrol et — yanlış aygıt yazarsan diski kaybedersin.
+
+**BIOS ayarları** (açılışta `F2`)
+
+- Secure Boot: **kapalı** (bu yapılandırma imzalı önyükleme kullanmıyor)
+- Boot mode: **UEFI** (CSM/Legacy kapalı)
+- Boot menu: `F12`
+
+## Adım 1 — ISO'yu başlat ve ortamı hazırla
+
+Açılan menüden ilk seçeneği seç. Kabuğa düşünce root ol:
+
+```bash
+sudo -i
+```
+
+Türkçe klavye (ISO varsayılan olarak US düzeninde açılır):
+
+```bash
+loadkeys trq
+```
+
+> Klavye düzenini değiştirmezsen `/` ve `-` gibi karakterler beklediğin tuşta
+> olmaz. Değiştirmek istemiyorsan da sorun değil, sadece US düzenine göre yaz.
+
+UEFI modunda açıldığını doğrula — çıktı boşsa **dur**, BIOS'a dönüp CSM'yi kapat:
+
+```bash
+ls /sys/firmware/efi && echo "UEFI: TAMAM"
+```
+
+## Adım 2 — Ağ bağlantısı
+
+**Kablolu:** otomatik gelir, bir şey yapman gerekmez.
+
+**Wi-Fi:**
+
+```bash
+systemctl start wpa_supplicant
+wpa_cli
+> add_network
+0
+> set_network 0 ssid "AG_ADI"
+> set_network 0 psk "PAROLA"
+> enable_network 0
+> quit
+```
+
+Bağlantıyı test et:
+
+```bash
+ping -c3 nixos.org
+```
+
+## Adım 3 — Diski doğrula
+
+**Yanlış diski silmemek için** hedefi kesin olarak teyit et:
+
+```bash
+lsblk -o NAME,SIZE,MODEL,LABEL
+```
+
+Beklenen çıktı: `nvme0n1` — 476.9G — `WD PC SN740 SDDPNQD-512G`. USB belleğin
+`sda` veya `sdb` olarak görünecek; ona dokunma.
+
+Eski dosya sistemi imzalarını temizle (disk btrfs'ti, kalıntı imzalar
+`blkid`'yi yanıltabilir):
+
+```bash
+wipefs -a /dev/nvme0n1
+```
+
+## Adım 4 — Bölümleme
+
+2 GiB EFI Sistem Bölümü + kalanın tamamı kök bölüm:
 
 ```bash
 parted /dev/nvme0n1 -- mklabel gpt
@@ -231,17 +360,48 @@ parted /dev/nvme0n1 -- set 1 esp on
 parted /dev/nvme0n1 -- mkpart root ext4 2049MiB 100%
 ```
 
-### 3. Biçimlendirme — label'lar `hardware.nix` ile birebir aynı olmalı
+Satır satır ne yapıyor:
+
+| Komut | Anlamı |
+|---|---|
+| `mklabel gpt` | GPT bölüm tablosu oluşturur (UEFI için şart) |
+| `mkpart ESP fat32 1MiB 2049MiB` | 1 MiB'den 2049 MiB'ye = tam 2 GiB ESP |
+| `set 1 esp on` | 1. bölüme ESP bayrağını koyar — **atlanırsa firmware bölümü görmez** |
+| `mkpart root ext4 2049MiB 100%` | Diskin geri kalanı kök bölüm |
+
+Kontrol:
+
+```bash
+parted /dev/nvme0n1 -- print
+```
+
+## Adım 5 — Biçimlendirme (label'lar kritik)
 
 ```bash
 mkfs.fat -F 32 -n BOOT /dev/nvme0n1p1
 mkfs.ext4 -L nixos     /dev/nvme0n1p2
 ```
 
-`BOOT` ve `nixos` yazımı önemli: FAT label'ları büyük harfe çevrilir, ext4
-label'ı büyük/küçük harf duyarlıdır.
+`hosts/matebook/hardware.nix` dosya sistemlerini **UUID ile değil label ile**
+tanımlıyor, bu yüzden label'lar birebir tutmalı:
 
-### 4. Bağlama
+| Beklenen label | Nerede tanımlı |
+|---|---|
+| `BOOT` (büyük harf) | `fileSystems."/boot".device = "/dev/disk/by-label/BOOT"` |
+| `nixos` (küçük harf) | `fileSystems."/".device = "/dev/disk/by-label/nixos"` |
+
+> `mkfs.fat` label'ın büyük/küçük harfini olduğu gibi saklar (küçük harfte
+> sadece uyarı verir). `-n boot` yazarsan `/dev/disk/by-label/BOOT` hiç
+> oluşmaz; kurulum sorunsuz biter ama **ilk açılışta sistem acil durum moduna
+> düşer.** ext4 de harf duyarlıdır.
+
+Doğrula — iki label da görünmeli:
+
+```bash
+lsblk -o NAME,FSTYPE,LABEL
+```
+
+## Adım 6 — Bağlama
 
 ```bash
 mount /dev/disk/by-label/nixos /mnt
@@ -249,139 +409,150 @@ mkdir -p /mnt/boot
 mount -o umask=077 /dev/disk/by-label/BOOT /mnt/boot
 ```
 
-Kontrol: `lsblk -o NAME,FSTYPE,LABEL,MOUNTPOINT` çıktısında label'lar görünmeli.
+`umask=077`, ESP'yi root dışındaki kullanıcılara kapatır — orada şifrelenmemiş
+çekirdek ve initrd duruyor. Kontrol:
 
-### 5. Yapılandırmayı yerine koy
+```bash
+findmnt /mnt /mnt/boot
+```
 
-`nixos-generate-config` çalıştırmaya gerek yok — `hardware.nix` elle yazıldı ve
-üretilen dosyanın yerine geçiyor.
+## Adım 7 — Yapılandırmayı klonla
 
 ```bash
 nix-shell -p git
 git clone https://github.com/ycderman/matebook.git /mnt/etc/nixos
+cd /mnt/etc/nixos
 ```
 
-Klonlanan depo zaten bir git deposu olduğu için ek bir şey yapmana gerek yok —
-flake'ler yalnızca git'in izlediği dosyaları görür, klonlanan her dosya izleniyor.
+`nixos-generate-config` çalıştırmana **gerek yok**: `hosts/matebook/hardware.nix`
+bu makinenin donanımına göre elle yazıldı ve üretilecek dosyanın yerine geçiyor.
 
-Kurulum sırasında yerel bir değişiklik yaparsan (`hardware.nix`'te bir düzeltme
-gibi) o dosyayı flake'in görmesi için önce git'e bildirmelisin:
+Depo git deposu olarak geldiği için flake bütün dosyaları görüyor. Kurulum
+sırasında yerel bir düzenleme yaparsan, flake'in görmesi için önce git'e bildir:
 
 ```bash
-cd /mnt/etc/nixos
 git add -A
 ```
 
-Depoyu klonlayamıyorsan (Wi-Fi yoksa) yapılandırmayı USB'den `/mnt/etc/nixos`
-altına kopyalayıp `git init && git add -A` de diyebilirsin.
+## Adım 8 — Kurulumdan önce doğrula
 
-### 6. Kurulum öncesi doğrulama (tip ve seçenek kontrolü)
-
-Bu adım **`nixos-install`'dan önce** yapılır ve diske hiçbir şey yazmaz. Amacı,
-yanlış yazılmış bir seçenek adını ya da hatalı bir değer tipini kurulum
-başlamadan yakalamak. Yapılandırmayı değerlendirmek nixpkgs'i indireceği için
-internet bağlantısı gerekiyor.
-
-Önce flake'i kullanılabilir hâle getir:
+Bu adım diske hiçbir şey yazmaz; amacı hatalı bir seçeneği kurulum başlamadan
+yakalamak. Önce flake'leri aç:
 
 ```bash
 export NIX_CONFIG="experimental-features = nix-command flakes"
-cd /mnt/etc/nixos
-git add -A          # flake yalnızca git'in izlediği dosyaları görür
 ```
 
-Sonra hafiften ağıra doğru üç kademe. **Sadece ilkini yapsan bile yeter** —
-soruların cevabı olan asıl kontrol o.
-
-**1) Yalnızca değerlendirme — en hızlı, hiçbir şey derlemez.** Bütün modülleri
-okur, seçenek adlarını ve tiplerini doğrular, sistemin türev (derivation)
-tanımını üretip durur:
+**Asıl kontrol — sadece değerlendirme, hiçbir şey derlemez:**
 
 ```bash
 nix eval .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
 ```
 
-Çıktı `/nix/store/....drv` gibi bir yolsa yapılandırmada tip/seçenek hatası yok.
-Bu tek komut `hosts/`, `modules/nixos/`, `modules/home/` ve `plasma.nix`'in
-tamamını kapsıyor: Home Manager bir NixOS modülü olarak bağlandığı için
-home-manager ve plasma-manager seçenekleri de aynı değerlendirmeye giriyor.
+Çıktı `/nix/store/....drv` biçiminde bir yolsa yapılandırma sağlam. Bu tek komut
+`hosts/`, `modules/nixos/` ve `modules/home/` dizinlerinin tamamını kapsıyor:
+Home Manager bir NixOS modülü olarak bağlandığı için home-manager ve
+plasma-manager seçenekleri de aynı değerlendirmeye giriyor.
 
-**2) Flake'in tümünü denetle** — çıktıların yapısını ve tüm
-`nixosConfigurations`'ı kontrol eder:
-
-```bash
-nix flake check --no-build
-```
-
-**3) Neyin derleneceğini gör** (yine derlemez, sadece planı yazar):
+İsteğe bağlı ek kontroller:
 
 ```bash
+nix flake check --no-build                    # flake çıktılarının yapısı
 nix build --dry-run .#nixosConfigurations.matebook.config.system.build.toplevel
 ```
 
-Gerçekten derleyip denemek istersen (uzun sürer, ama kurulumdan önce her şeyin
-derlendiğini garanti eder):
+### Hata mesajlarını okumak
 
-```bash
-nixos-rebuild build --flake /mnt/etc/nixos#matebook
-```
-
-#### Hata mesajlarını okumak
+Nix hata çıktısı uzundur; **asıl bilgi en alttaki birkaç satırdadır.**
 
 | Mesaj | Anlamı | Ne yapmalı |
 |---|---|---|
-| ``The option `services.foo.bar' does not exist`` | Seçenek adı yanlış, ya da unstable'da yeniden adlandırılmış/kaldırılmış | Doğru adı [search.nixos.org/options](https://search.nixos.org/options?channel=unstable) üzerinden bul |
-| `A definition for option '...' is not of type '...'` | Değerin tipi yanlış (ör. sayı beklenen yere metin) | Hata satırındaki dosya/konumu düzelt |
-| `attribute 'xyz' missing` | `pkgs.xyz` diye bir paket yok | [search.nixos.org/packages](https://search.nixos.org/packages?channel=unstable) ile doğru adı bul |
-| `infinite recursion encountered` | Bir seçenek dolaylı olarak kendini tanımlıyor | Hata izindeki modülde `lib.mkDefault` / `config.` kullanımına bak |
+| ``The option `services.foo.bar' does not exist`` | Seçenek adı yanlış ya da yeniden adlandırılmış | [search.nixos.org/options](https://search.nixos.org/options?channel=unstable) |
+| `A definition for option '...' is not of type '...'` | Değerin tipi yanlış | Hata satırındaki dosyayı düzelt |
+| `attribute 'xyz' missing` | `pkgs.xyz` diye paket yok | [search.nixos.org/packages](https://search.nixos.org/packages?channel=unstable) |
+| `'x' has been renamed to/replaced by 'y'` | Paket adı değişmiş | `y` yaz |
+| `infinite recursion encountered` | Bir seçenek dolaylı olarak kendini tanımlıyor | İzdeki modülde `config.` kullanımına bak |
 | `error: path '/nix/store/...' does not exist` + `.xpi` | `tvplus-1080p.xpi` git'e eklenmemiş | `git add modules/nixos/tvplus-1080p.xpi` |
 
-Nix hata çıktısı uzun olur; asıl bilgi en **alttaki** birkaç satırdadır. Daha
-fazla bağlam için `--show-trace` ekle:
+Daha fazla bağlam için `--show-trace` ekle.
+
+## Adım 9 — Kurulum
 
 ```bash
-nix eval --show-trace .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
+nixos-install --flake .#matebook
 ```
 
-Kurulumdan sonra da aynı işi `nixos-rebuild dry-build --flake ~/nixos-config#matebook`
-yapıyor — her değişiklikten sonra `rebuild` demeden önce alışkanlık hâline getir.
+- `--root` varsayılanı `/mnt`, ayrıca vermene gerek yok.
+- Yaklaşık 5 GB indirilecek; kablolu bağlantıda 10-20 dakika sürer.
+- **Son adımda root parolası sorulacak — mutlaka bir parola belirle.**
+  Yapılandırma root parolasını bilerek tanımlamıyor (bkz. `modules/nixos/users.nix`),
+  o yüzden burada verdiğin parola kalıcı; sonraki `rebuild`'lerde geri alınmaz.
+  Sistem bir gün acil durum moduna düşerse tek kurtarma yolu bu parola, çünkü
+  `boot.loader.systemd-boot.editor = false` çekirdek satırını düzenlemeyi kapatıyor.
 
-### 7. Kurulum
+Bittiğinde:
 
 ```bash
-export NIX_CONFIG="experimental-features = nix-command flakes"
-nixos-install --flake /mnt/etc/nixos#matebook
+reboot
 ```
 
-İlk çalıştırmada `flake.lock` üretilir.
+USB belleği çıkarmayı unutma.
 
-Son adımda `nixos-install` root parolasını soracak — **burada bir parola belirle.**
-Yapılandırma root parolasını bilerek tanımlamıyor (bkz. `modules/nixos/users.nix`),
-o yüzden burada verdiğin parola kalıcı; sonraki `rebuild`'lerde geri alınmaz.
-Acil durum moduna düşülürse tek kurtarma yolu bu parola, çünkü
-`boot.loader.systemd-boot.editor = false` çekirdek satırını düzenlemeyi kapatıyor.
+## Adım 10 — İlk açılış
 
-Kurulum bitince `reboot`.
+Plasma Login Manager açılmalı. Kullanıcı `can`, parola `nixos`.
 
-### 8. İlk açılış
+Sırayla:
 
-- Kullanıcı: `can`, geçici parola: `nixos` (`users.nix` içindeki `initialPassword`).
-- Hemen değiştir: `passwd`
-- Yapılandırmayı ev dizinine taşı (alias'lar `~/nixos-config` bekliyor):
-  ```bash
-  sudo cp -r /etc/nixos ~/nixos-config && sudo chown -R can:$(id -gn) ~/nixos-config
-  ```
-  `.git` dizini de kopyalandığı için `origin` uzak deposu korunur.
+```bash
+passwd                       # 1. can'in geçici parolasını değiştir
+sudo passwd root             # 2. istersen root parolasını da tazele
+```
 
-- **Push edebilmek için:** kurulumda depo HTTPS ile klonlanıyor, yani `origin`
-  salt okunur. Ayrıca disk sıfırlandığı için eski SSH anahtarların da gitmiş
-  olacak. GitHub'a geri gönderebilmek için yeni bir anahtar üret ve ekle:
-  ```bash
-  ssh-keygen -t ed25519 -C "can@matebook"
-  cat ~/.ssh/id_ed25519.pub          # çıktıyı github.com/settings/keys sayfasına ekle
-  git -C ~/nixos-config remote set-url origin git@github.com:ycderman/matebook.git
-  ```
-  Aynı anahtarı homeserver'ın `authorized_keys` dosyasına eklemeyi de unutma.
+Yapılandırmayı ev dizinine al — kabuk kısayolları `~/nixos-config` bekliyor:
+
+```bash
+sudo cp -r /etc/nixos ~/nixos-config
+sudo chown -R can:$(id -gn) ~/nixos-config
+```
+
+`.git` dizini de kopyalandığı için `origin` korunur. Push edebilmek için yeni
+bir SSH anahtarı gerekiyor (eski anahtarların diskle birlikte silindi):
+
+```bash
+ssh-keygen -t ed25519 -C "can@matebook"
+cat ~/.ssh/id_ed25519.pub        # çıktıyı github.com/settings/keys sayfasına ekle
+git -C ~/nixos-config remote set-url origin git@github.com:ycderman/matebook.git
+```
+
+Aynı anahtarı homeserver'ın `authorized_keys` dosyasına eklemeyi de unutma.
+
+## Adım 11 — Bir şeyler ters giderse
+
+**Sistem açılmıyor / acil durum moduna düşüyor.** En sık sebebi yanlış disk
+label'ı. Boot menüsünde (`systemd-boot`, açılışta boşluk tuşu) önceki kuşağı
+seçebilirsin — ama bu ilk kurulumsa önceki kuşak yoktur. O zaman ISO'dan aç,
+bölümleri bağla ve label'ları düzelt:
+
+```bash
+mount /dev/disk/by-label/nixos /mnt && mount /dev/disk/by-label/BOOT /mnt/boot
+# veya label yanlışsa: fatlabel /dev/nvme0n1p1 BOOT
+```
+
+**`rebuild` hata veriyor.** Sistem bozulmaz — `nixos-rebuild switch` başarısız
+olursa çalışan sistem olduğu gibi kalır. Hatayı düzeltip tekrar dene.
+
+**Kötü bir değişikliği geri almak.** Her `rebuild` yeni bir kuşak oluşturur:
+
+```bash
+sudo nixos-rebuild switch --rollback     # bir önceki kuşağa dön
+nixos-rebuild list-generations           # kuşakları listele
+```
+
+Açılmayan bir kuşak varsa boot menüsünden eski kuşağı seçmen yeterli.
+
+**Kurulumu baştan yapmak.** Adım 4'ten itibaren tekrarla; yapılandırma GitHub'da
+durduğu için hiçbir şey kaybolmaz.
 
 ## Günlük kullanım
 
