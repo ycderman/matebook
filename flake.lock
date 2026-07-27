@@ -5,8 +5,8 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1785183535,
-        "narHash": "sha256-dO5cutP3RDpW/MPrabEM/p9a98j42hKvSPhQMLMuSXY=",
+        "lastModified": 1785184626,
+        "narHash": "sha256-essmUemo+kiAjUrNPgG1Uc5xwlZaYQ9R06jziQF2wqM=",
         "path": "/home/can/Projects/Cinevara",
         "type": "path"
       },

@@ -12,7 +12,7 @@
     jq
     tree
     ncdu
-
+    bubblewrap
     # Medya (iHD / VA-API üzerinden donanım hızlandırmalı)
     mpv
     ffmpeg
