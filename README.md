@@ -3,6 +3,11 @@
 `nixos-unstable` (26.11 geliştirme dalı) + flake + Home Manager + plasma-manager.
 Yapılandırma bu makineye özel: donanım bilgileri çalışan sistemden okunarak yazıldı.
 
+```bash
+git clone https://github.com/ycderman/matebook.git /mnt/etc/nixos
+nixos-install --flake /mnt/etc/nixos#matebook
+```
+
 ## Hedef sistem
 
 | | |
@@ -253,15 +258,22 @@ Kontrol: `lsblk -o NAME,FSTYPE,LABEL,MOUNTPOINT` çıktısında label'lar görü
 
 ```bash
 nix-shell -p git
-git clone <bu-depo> /mnt/etc/nixos      # ya da USB'den kopyala
+git clone https://github.com/ycderman/matebook.git /mnt/etc/nixos
 ```
 
-Flake'ler yalnızca git tarafından izlenen dosyaları görür; depo yeni ise:
+Klonlanan depo zaten bir git deposu olduğu için ek bir şey yapmana gerek yok —
+flake'ler yalnızca git'in izlediği dosyaları görür, klonlanan her dosya izleniyor.
+
+Kurulum sırasında yerel bir değişiklik yaparsan (`hardware.nix`'te bir düzeltme
+gibi) o dosyayı flake'in görmesi için önce git'e bildirmelisin:
 
 ```bash
 cd /mnt/etc/nixos
-git init && git add -A
+git add -A
 ```
+
+Depoyu klonlayamıyorsan (Wi-Fi yoksa) yapılandırmayı USB'den `/mnt/etc/nixos`
+altına kopyalayıp `git init && git add -A` de diyebilirsin.
 
 ### 6. Kurulum öncesi doğrulama (tip ve seçenek kontrolü)
 
@@ -349,8 +361,10 @@ nixos-install --flake /mnt/etc/nixos#matebook
 - Hemen değiştir: `passwd`
 - Yapılandırmayı ev dizinine taşı (alias'lar `~/nixos-config` bekliyor):
   ```bash
-  sudo cp -r /etc/nixos ~/nixos-config && sudo chown -R can:users ~/nixos-config
+  sudo cp -r /etc/nixos ~/nixos-config && sudo chown -R can:$(id -gn) ~/nixos-config
   ```
+  `.git` dizini de kopyalandığı için `origin` uzak deposu korunur; değişiklikleri
+  doğrudan buradan `git push` ile GitHub'a gönderebilirsin.
 
 ## Günlük kullanım
 
