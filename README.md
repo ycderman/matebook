@@ -363,8 +363,17 @@ nixos-install --flake /mnt/etc/nixos#matebook
   ```bash
   sudo cp -r /etc/nixos ~/nixos-config && sudo chown -R can:$(id -gn) ~/nixos-config
   ```
-  `.git` dizini de kopyalandığı için `origin` uzak deposu korunur; değişiklikleri
-  doğrudan buradan `git push` ile GitHub'a gönderebilirsin.
+  `.git` dizini de kopyalandığı için `origin` uzak deposu korunur.
+
+- **Push edebilmek için:** kurulumda depo HTTPS ile klonlanıyor, yani `origin`
+  salt okunur. Ayrıca disk sıfırlandığı için eski SSH anahtarların da gitmiş
+  olacak. GitHub'a geri gönderebilmek için yeni bir anahtar üret ve ekle:
+  ```bash
+  ssh-keygen -t ed25519 -C "can@matebook"
+  cat ~/.ssh/id_ed25519.pub          # çıktıyı github.com/settings/keys sayfasına ekle
+  git -C ~/nixos-config remote set-url origin git@github.com:ycderman/matebook.git
+  ```
+  Aynı anahtarı homeserver'ın `authorized_keys` dosyasına eklemeyi de unutma.
 
 ## Günlük kullanım
 
