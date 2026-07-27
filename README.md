@@ -61,7 +61,7 @@ nixos-config/
     │   ├── default.nix          # hepsini import eder
     │   ├── boot.nix             # systemd-boot
     │   ├── nix.nix              # flakes, gc, optimise, registry
-    │   ├── locale.nix           # tr_TR.UTF-8 + Türkçe "İ" hatası düzeltmesi
+    │   ├── locale.nix           # tr_TR.UTF-8, Europe/Istanbul, trq / xkb tr
     │   ├── network.nix          # NetworkManager, firewall, avahi, homeserver
     │   ├── audio.nix            # PipeWire + rtkit
     │   ├── graphics.nix         # Intel Gen12: intel-media-driver, vpl-gpu-rt
@@ -80,6 +80,7 @@ nixos-config/
         ├── default.nix
         ├── packages.nix
         ├── shell.nix            # bash + direnv, EDITOR=nano
+        ├── nix-shell-fix.nix    # Türkçe "İ" hatasına karşı nix sarmalayıcıları
         ├── git.nix
         └── plasma.nix           # plasma-manager: panel, powerdevil, kilit kapalı
 ```
@@ -110,19 +111,37 @@ LC_CTYPE=tr_TR.UTF-8  ->  ${v^^} = RANLİB    (hata bu)
 LC_CTYPE=C.UTF-8      ->  ${v^^} = RANLIB    (düzgün)
 ```
 
-**Çözüm** (`modules/nixos/locale.nix`): sistem ve konsol dili Türkçe kalır,
-yalnızca `LC_CTYPE` ayrılır:
+**Çözüm** (`modules/home/nix-shell-fix.nix`). **Sistem diline dokunulmuyor** —
+`LANG` ve bütün `LC_*` değişkenleri `tr_TR.UTF-8` kalıyor. Bunun yerine yalnızca
+ilgili nix komutları, kendi alt süreçlerine `LC_CTYPE=C.UTF-8` verecek şekilde
+sarmalanıyor:
 
 ```nix
-i18n.defaultLocale = "tr_TR.UTF-8";     # arayüz, tarih, para birimi vs. Türkçe
-i18n.extraLocaleSettings.LC_CTYPE = "C.UTF-8";
+nix-shell-wrapper = pkgs.writeShellScriptBin "nix-shell" ''
+  export LC_CTYPE=C.UTF-8
+  exec ${nix}/bin/nix-shell "$@"
+'';
+
+nix-wrapper = pkgs.writeShellScriptBin "nix" ''
+  case "''${1-}" in
+    develop|print-dev-env) export LC_CTYPE=C.UTF-8 ;;
+  esac
+  exec ${nix}/bin/nix "$@"
+'';
 ```
 
-`C.UTF-8` da UTF-8 olduğu için Türkçe karakterler her yerde normal görüntülenip
-yazılmaya devam eder. Tek kayıp, komut satırı araçlarının Türkçeye özgü büyük
-harf kuralı: `echo istanbul | tr a-z A-Z` artık `İSTANBUL` değil `ISTANBUL` verir.
+Yani düzeltme tam olarak derleme ortamının içinde kalıyor; senin kabuğun,
+Plasma arayüzü, `tr`/`sed` gibi araçlar hepsi Türkçe locale'de çalışmaya devam
+ediyor. `nix develop` ve (direnv'in kullandığı) `nix print-dev-env` de aynı hatayı
+verdiği için onlar da kapsandı; `nix build`, `nix run`, `nix flake` gibi alt
+komutlar hiç dokunulmadan gerçek ikiliye geçiyor.
 
-Bu satırı hiç istemezsen alternatif, sorunu komut bazında geçmek:
+Sarmalayıcılar kullanıcı profiline (`/etc/profiles/per-user/can/bin`) kuruluyor
+ve PATH'te sistem profilinden (`/run/current-system/sw/bin`) önce geldiği için
+gerçek ikilileri gölgeliyor — ad çakışması ya da öncelik ayarı gerekmiyor.
+
+Kaldırmak istersen `modules/home/default.nix` içindeki `imports` listesinden
+`./nix-shell-fix.nix` satırını sil; o zaman komut bazında elle yapman gerekir:
 
 ```bash
 LC_CTYPE=C.UTF-8 nix-shell -p python3
@@ -244,7 +263,78 @@ cd /mnt/etc/nixos
 git init && git add -A
 ```
 
-### 6. Kurulum
+### 6. Kurulum öncesi doğrulama (tip ve seçenek kontrolü)
+
+Bu adım **`nixos-install`'dan önce** yapılır ve diske hiçbir şey yazmaz. Amacı,
+yanlış yazılmış bir seçenek adını ya da hatalı bir değer tipini kurulum
+başlamadan yakalamak. Yapılandırmayı değerlendirmek nixpkgs'i indireceği için
+internet bağlantısı gerekiyor.
+
+Önce flake'i kullanılabilir hâle getir:
+
+```bash
+export NIX_CONFIG="experimental-features = nix-command flakes"
+cd /mnt/etc/nixos
+git add -A          # flake yalnızca git'in izlediği dosyaları görür
+```
+
+Sonra hafiften ağıra doğru üç kademe. **Sadece ilkini yapsan bile yeter** —
+soruların cevabı olan asıl kontrol o.
+
+**1) Yalnızca değerlendirme — en hızlı, hiçbir şey derlemez.** Bütün modülleri
+okur, seçenek adlarını ve tiplerini doğrular, sistemin türev (derivation)
+tanımını üretip durur:
+
+```bash
+nix eval .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
+```
+
+Çıktı `/nix/store/....drv` gibi bir yolsa yapılandırmada tip/seçenek hatası yok.
+Bu tek komut `hosts/`, `modules/nixos/`, `modules/home/` ve `plasma.nix`'in
+tamamını kapsıyor: Home Manager bir NixOS modülü olarak bağlandığı için
+home-manager ve plasma-manager seçenekleri de aynı değerlendirmeye giriyor.
+
+**2) Flake'in tümünü denetle** — çıktıların yapısını ve tüm
+`nixosConfigurations`'ı kontrol eder:
+
+```bash
+nix flake check --no-build
+```
+
+**3) Neyin derleneceğini gör** (yine derlemez, sadece planı yazar):
+
+```bash
+nix build --dry-run .#nixosConfigurations.matebook.config.system.build.toplevel
+```
+
+Gerçekten derleyip denemek istersen (uzun sürer, ama kurulumdan önce her şeyin
+derlendiğini garanti eder):
+
+```bash
+nixos-rebuild build --flake /mnt/etc/nixos#matebook
+```
+
+#### Hata mesajlarını okumak
+
+| Mesaj | Anlamı | Ne yapmalı |
+|---|---|---|
+| ``The option `services.foo.bar' does not exist`` | Seçenek adı yanlış, ya da unstable'da yeniden adlandırılmış/kaldırılmış | Doğru adı [search.nixos.org/options](https://search.nixos.org/options?channel=unstable) üzerinden bul |
+| `A definition for option '...' is not of type '...'` | Değerin tipi yanlış (ör. sayı beklenen yere metin) | Hata satırındaki dosya/konumu düzelt |
+| `attribute 'xyz' missing` | `pkgs.xyz` diye bir paket yok | [search.nixos.org/packages](https://search.nixos.org/packages?channel=unstable) ile doğru adı bul |
+| `infinite recursion encountered` | Bir seçenek dolaylı olarak kendini tanımlıyor | Hata izindeki modülde `lib.mkDefault` / `config.` kullanımına bak |
+| `error: path '/nix/store/...' does not exist` + `.xpi` | `tvplus-1080p.xpi` git'e eklenmemiş | `git add modules/nixos/tvplus-1080p.xpi` |
+
+Nix hata çıktısı uzun olur; asıl bilgi en **alttaki** birkaç satırdadır. Daha
+fazla bağlam için `--show-trace` ekle:
+
+```bash
+nix eval --show-trace .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
+```
+
+Kurulumdan sonra da aynı işi `nixos-rebuild dry-build --flake ~/nixos-config#matebook`
+yapıyor — her değişiklikten sonra `rebuild` demeden önce alışkanlık hâline getir.
+
+### 7. Kurulum
 
 ```bash
 export NIX_CONFIG="experimental-features = nix-command flakes"
@@ -253,7 +343,7 @@ nixos-install --flake /mnt/etc/nixos#matebook
 
 İlk çalıştırmada `flake.lock` üretilir. Kurulum bitince `reboot`.
 
-### 7. İlk açılış
+### 8. İlk açılış
 
 - Kullanıcı: `can`, geçici parola: `nixos` (`users.nix` içindeki `initialPassword`).
 - Hemen değiştir: `passwd`
@@ -284,9 +374,14 @@ vainfo                               # iHD sürücüsü (VA-API)
 zramctl                              # zram takas — 8 GiB görünmeli
 cat /sys/devices/platform/huawei-wmi/charge_control_thresholds   # 70 80
 systemctl status power-profiles-daemon thermald
+locale                               # hepsi tr_TR.UTF-8 olmalı (LC_CTYPE dahil)
+type nix-shell                       # /etc/profiles/per-user/can/bin/nix-shell (sarmalayıcı)
 nix-shell -p python3 --run "python3 -V"   # RANLİB hatası gelmemeli
-locale                               # LANG=tr_TR.UTF-8, LC_CTYPE=C.UTF-8
 ```
+
+Son iki satır birlikte anlamlı: `locale` çıktısında `LC_CTYPE=tr_TR.UTF-8`
+görünmesine rağmen `nix-shell` çalışıyorsa, düzeltme doğru yerde — sistem dili
+Türkçe kalmış, `C.UTF-8` yalnızca derleme ortamının içine verilmiş demektir.
 
 ## Verilen kararlar ve gerekçeleri
 

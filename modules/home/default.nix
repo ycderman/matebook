@@ -4,6 +4,7 @@
   imports = [
     ./packages.nix
     ./shell.nix
+    ./nix-shell-fix.nix
     ./git.nix
     ./plasma.nix
   ];
