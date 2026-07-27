@@ -3,14 +3,14 @@
   programs.git = {
     enable = true;
 
-    userName = "Can Derman";
+    userName = "ycderman";
     userEmail = "y.canderman@proton.me";
 
     extraConfig = {
       init.defaultBranch = "main";
       pull.rebase = true;
       push.autoSetupRemote = true;
-      core.editor = "vim";
+      core.editor = "nano";
       diff.algorithm = "histogram";
     };
 

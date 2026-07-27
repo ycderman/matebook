@@ -1,4 +1,4 @@
-# Interactive shell — bash, matching the login shell set in modules/nixos/users.nix.
+# Etkileşimli kabuk — bash (modules/nixos/users.nix'teki giriş kabuğuyla aynı).
 { ... }:
 {
   programs.bash = {
@@ -20,7 +20,7 @@
       df = "df -h";
       du = "ncdu";
 
-      # Flake workflow — the configuration lives in ~/nixos-config
+      # Flake akışı — yapılandırma ~/nixos-config içinde
       rebuild = "sudo nixos-rebuild switch --flake ~/nixos-config#matebook";
       rebuild-test = "sudo nixos-rebuild test --flake ~/nixos-config#matebook";
       rebuild-boot = "sudo nixos-rebuild boot --flake ~/nixos-config#matebook";
@@ -31,7 +31,6 @@
     };
 
     initExtra = ''
-      # Show the current NixOS generation in the prompt's right-hand context.
       export PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
     '';
   };
@@ -43,8 +42,10 @@
   };
 
   home.sessionVariables = {
-    EDITOR = "vim";
-    # Wayland-native rendering for the toolkits that need a hint.
+    EDITOR = "nano";
+    VISUAL = "nano";
+
+    # İhtiyaç duyan araç setleri için Wayland'e özgü çizim.
     NIXOS_OZONE_WL = "1";
   };
 }

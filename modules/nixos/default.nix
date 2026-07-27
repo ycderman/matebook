@@ -1,4 +1,5 @@
-# Aggregator for all system-level feature modules.
+# Sistem seviyesindeki tüm modülleri toplayan dosya.
+# Yeni bir modül eklemek için: dosyayı bu dizine koy, aşağıdaki listeye bir satır ekle.
 { ... }:
 {
   imports = [
@@ -6,6 +7,7 @@
     ./bluetooth.nix
     ./boot.nix
     ./desktop.nix
+    ./firefox.nix
     ./firmware.nix
     ./fonts.nix
     ./graphics.nix

@@ -1,19 +1,20 @@
-# Hardware profile — HUAWEI MateBook D16 2024
+# Donanım profili — HUAWEI MateBook D16 2024
 #
-#   Board / DMI     : HUAWEI MCLF-XX (MateBook D, MCLF-XX-PCB, SKU C170, BIOS 1.13)
-#   CPU             : 12th Gen Intel Core i5-12450H (Alder Lake-P, 8C/12T, intel_pstate)
-#   GPU             : Intel Alder Lake-P GT1 [UHD Graphics] — PCI 8086:46a3
-#   RAM             : 8 GiB (no swap partition -> zram, see modules/nixos/power.nix)
-#   Storage         : WD PC SN740 512 GB NVMe (/dev/nvme0n1, 512110190592 bytes)
+#   Anakart / DMI   : HUAWEI MCLF-XX (MateBook D, MCLF-XX-PCB, SKU C170, BIOS 1.13)
+#   İşlemci         : 12. nesil Intel Core i5-12450H (Alder Lake-P, 8C/12T, intel_pstate)
+#   Ekran kartı     : Intel Alder Lake-P GT1 [UHD Graphics] — PCI 8086:46a3
+#   RAM             : 8 GiB (takas bölümü yok -> zram, bkz. modules/nixos/power.nix)
+#   Depolama        : WD PC SN740 512 GB NVMe (/dev/nvme0n1, 512110190592 bayt)
 #   Wi-Fi           : Intel AX201 CNVi (iwlwifi) — wlp0s20f3
 #   Bluetooth       : Intel AX201 Bluetooth (btusb, USB 8087:0026)
-#   Audio           : Intel Alder Lake-P HDA + SOF DSP (sof-hda-dsp, Conexant codec)
-#   Webcam          : Sunplus HD Camera (USB 1bcf:2d0c, uvcvideo)
-#   Touchpad        : BLTP7840 I2C HID multitouch
-#   Extras          : Huawei WMI hotkeys, intel_backlight, BAT0 (HB4692Z9ECW-22T)
+#   Ses             : Intel Alder Lake-P HDA + SOF DSP (sof-hda-dsp, Conexant codec)
+#   Kamera          : Sunplus HD Camera (USB 1bcf:2d0c, uvcvideo)
+#   Dokunmatik yüzey: BLTP7840 I2C HID çoklu dokunma
+#   Ekstra          : Huawei WMI kısayol tuşları, intel_backlight, BAT0 (HB4692Z9ECW-22T)
 #
-# Written by hand from the running hardware instead of nixos-generate-config,
-# so it is never overwritten. Layout follows the manual's UEFI/GPT scheme:
+# Bu dosya nixos-generate-config çıktısı değil; çalışan sistemden okunan gerçek
+# verilerle elle yazıldı, bu yüzden hiçbir zaman üzerine yazılmaz. Disk düzeni
+# manual'daki UEFI/GPT şemasını izler:
 # https://nixos.org/manual/nixos/stable/#sec-installation-manual-partitioning
 {
   config,
@@ -25,35 +26,43 @@
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
 
   ##############################################################################
-  # Kernel modules
+  # Çekirdek modülleri
   ##############################################################################
 
-  # Needed inside the initrd to reach the NVMe root device.
+  # initrd içinde NVMe kök diske ulaşmak için gerekenler.
   boot.initrd.availableKernelModules = [
     "xhci_pci" # Alder Lake PCH USB 3.2 xHCI
-    "thunderbolt" # Alder Lake-P Thunderbolt 4 controller
-    "nvme" # WD PC SN740 root disk
-    "usb_storage" # USB installer / external drives
+    "nvme" # WD PC SN740 kök disk
+    "usb_storage" # USB kurulum medyası / harici diskler
     "sd_mod"
   ];
+
+  # NOT: "thunderbolt" modülü bilinçli olarak YOK. Bu makinede Thunderbolt/USB4
+  # bulunmuyor — donanımda doğrulandı:
+  #   * /sys/bus/thunderbolt/devices dizini hiç oluşmuyor
+  #   * lspci'de Thunderbolt NHI denetleyicisi yok (yalnızca 00:0d.0 "Thunderbolt 4
+  #     USB Controller" var; bu, Type-C portunu süren TCSS xHCI denetleyicisi,
+  #     Thunderbolt bağlantısı değil)
+  #   * /sys/class/typec boş — USB-PD/alternatif mod denetleyicisi görünmüyor
+  # Yani USB-C portu: şarj + DisplayPort + USB 3.2, Thunderbolt yok.
 
   boot.initrd.kernelModules = [ ];
 
   boot.kernelModules = [
-    "kvm-intel" # VT-x is present (see lscpu flags)
-    "huawei_wmi" # Huawei WMI hotkeys + battery charge thresholds
+    "kvm-intel" # VT-x mevcut (lscpu bayraklarında görüldü)
+    "huawei_wmi" # Huawei WMI kısayolları + pil şarj eşikleri
   ];
 
   boot.extraModulePackages = [ ];
 
   ##############################################################################
-  # File systems — addressed by LABEL, never by UUID
+  # Dosya sistemleri — UUID değil, her zaman LABEL
   ##############################################################################
   #
-  #   /dev/nvme0n1p1  2 GiB   vfat  LABEL=BOOT   -> /boot  (EFI System Partition)
-  #   /dev/nvme0n1p2  rest    ext4  LABEL=nixos  -> /
+  #   /dev/nvme0n1p1  2 GiB   vfat  LABEL=BOOT   -> /boot  (EFI Sistem Bölümü)
+  #   /dev/nvme0n1p2  kalanı  ext4  LABEL=nixos  -> /
   #
-  # The manual recommends labels explicitly: "It is recommended that you assign
+  # Manual label kullanımını açıkça öneriyor: "It is recommended that you assign
   # a unique symbolic label to the file system using the option -L label, since
   # this makes the file system configuration independent from device changes."
 
@@ -61,7 +70,7 @@
     device = "/dev/disk/by-label/nixos";
     fsType = "ext4";
     options = [
-      "noatime" # fewer writes on the NVMe
+      "noatime" # NVMe'ye daha az yazma
       "errors=remount-ro"
     ];
   };
@@ -69,15 +78,15 @@
   fileSystems."/boot" = {
     device = "/dev/disk/by-label/BOOT";
     fsType = "vfat";
-    # Equivalent of the manual's `mount -o umask=077`: keep the ESP unreadable
-    # for non-root users, since it holds the unencrypted kernel/initrd.
+    # Manual'daki `mount -o umask=077` karşılığı: şifrelenmemiş çekirdek ve
+    # initrd'yi barındıran ESP'yi root dışındaki kullanıcılara kapalı tutar.
     options = [
       "fmask=0077"
       "dmask=0077"
     ];
   };
 
-  # No swap partition by design — compressed zram swap is used instead.
+  # Tasarım gereği takas bölümü yok — bunun yerine sıkıştırılmış zram kullanılıyor.
   swapDevices = [ ];
 
   ##############################################################################
@@ -86,9 +95,9 @@
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 
-  # 12th Gen Intel — microcode updates come from the redistributable firmware set.
+  # 12. nesil Intel — mikrokod güncellemeleri redistributable firmware setinden gelir.
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
-  # NetworkManager owns the interfaces (see modules/nixos/network.nix).
+  # Arayüzleri NetworkManager yönetiyor (bkz. modules/nixos/network.nix).
   networking.useDHCP = lib.mkDefault false;
 }

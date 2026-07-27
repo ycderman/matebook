@@ -1,8 +1,8 @@
-# Audio — PipeWire on the Alder Lake-P SOF DSP (card: sof-hda-dsp).
+# Ses — Alder Lake-P SOF DSP üzerinde PipeWire (kart: sof-hda-dsp).
 # https://wiki.nixos.org/wiki/PipeWire
 { ... }:
 {
-  # rtkit lets PipeWire use the realtime scheduler.
+  # rtkit, PipeWire'ın gerçek zamanlı zamanlayıcıyı kullanmasına izin verir.
   security.rtkit.enable = true;
 
   services.pipewire = {
@@ -10,13 +10,13 @@
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
-    # jack.enable = true;  # enable if JACK clients are ever needed
+    # jack.enable = true;  # JACK istemcisi gerekirse aç
     wireplumber.enable = true;
   };
 
-  # PipeWire replaces PulseAudio entirely.
+  # PipeWire, PulseAudio'nun tamamen yerini alıyor.
   services.pulseaudio.enable = false;
 
-  # The SOF DSP firmware for Alder Lake ships with the linux-firmware set that
-  # hardware.enableRedistributableFirmware pulls in (see firmware.nix).
+  # Alder Lake SOF DSP firmware'i, firmware.nix'teki
+  # hardware.enableRedistributableFirmware ile gelen linux-firmware setinde.
 }

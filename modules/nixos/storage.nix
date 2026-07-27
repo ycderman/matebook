@@ -1,28 +1,28 @@
-# Remote storage: the IdeaPad 530S homeserver at 192.168.1.3.
+# Uzak depolama: 192.168.1.3 adresindeki IdeaPad 530S homeserver.
 #
-# The mounts are left commented out on purpose — an unreachable NFS server can
-# stall boot. Uncomment what is needed; the x-systemd.automount options below
-# make the mount lazy and non-fatal, which is what a laptop wants.
+# Bağlamalar bilinçli olarak yorumlu bırakıldı — erişilemeyen bir NFS sunucusu
+# açılışı kilitleyebilir. İhtiyacın olanı aç; aşağıdaki seçenekler bağlamayı
+# tembel ve hatası ölümcül olmayan hâle getiriyor, bir dizüstünde istenen de bu.
 { ... }:
 {
-  # NFS client support (rpcbind + idmapd are pulled in by the fileSystems
-  # entries; rpcbind is enabled here so `showmount -e homeserver` works too).
+  # NFS istemci desteği. (idmapd/rpc-statd zaten fileSystems girdileriyle
+  # geliyor; rpcbind burada açık ki `showmount -e homeserver` da çalışsın.)
   services.rpcbind.enable = true;
 
   # fileSystems."/mnt/homeserver" = {
   #   device = "homeserver:/srv/media";
   #   fsType = "nfs";
   #   options = [
-  #     "x-systemd.automount"      # mount on first access, not at boot
+  #     "x-systemd.automount"      # açılışta değil, ilk erişimde bağla
   #     "x-systemd.idle-timeout=600"
   #     "noauto"
   #     "_netdev"
-  #     "soft"                     # fail instead of hanging when the server is down
+  #     "soft"                     # sunucu kapalıysa asılı kalma, hata ver
   #     "timeo=50"
   #   ];
   # };
 
-  # SSHFS alternative (uses the matebook-homeserver-sshfs key):
+  # SSHFS alternatifi (matebook-homeserver-sshfs anahtarını kullanır):
   #   sshfs can@192.168.1.3:/srv /mnt/homeserver -o reconnect,idmap=user
-  # The sshfs binary is installed in packages.nix.
+  # sshfs ikilisi packages.nix içinde kurulu.
 }

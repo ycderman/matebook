@@ -1,25 +1,25 @@
-# Home Manager wired in as a NixOS module, with plasma-manager available to
-# every user configuration.
+# Home Manager'ı NixOS modülü olarak bağlar; plasma-manager'ı da her kullanıcı
+# yapılandırmasına açar.
 # https://wiki.nixos.org/wiki/Home_Manager
 { inputs, ... }:
 {
   imports = [ inputs.home-manager.nixosModules.default ];
 
   home-manager = {
-    # Use the system's nixpkgs (already pinned by the flake) instead of a
-    # second, independently evaluated one.
+    # İkinci bir nixpkgs değerlendirmek yerine sistemin (flake'te sabitlenmiş)
+    # nixpkgs'ini kullan.
     useGlobalPkgs = true;
 
-    # Install user packages into the user profile.
+    # Kullanıcı paketlerini kullanıcı profiline kur.
     useUserPackages = true;
 
-    # Rename pre-existing dotfiles instead of failing the activation.
+    # Önceden var olan dotfile'ları hata vermek yerine yeniden adlandır.
     backupFileExtension = "hm-bak";
 
-    # Flake inputs reach the home modules too.
+    # Flake input'ları home modüllerine de ulaşsın.
     extraSpecialArgs = { inherit inputs; };
 
-    # plasma-manager is a Home Manager module, not a NixOS one.
+    # plasma-manager bir Home Manager modülü, NixOS modülü değil.
     # https://wiki.nixos.org/wiki/KDE
     sharedModules = [ inputs.plasma-manager.homeModules.plasma-manager ];
 

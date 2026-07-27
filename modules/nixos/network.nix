@@ -1,43 +1,44 @@
-# Networking — NetworkManager drives the Intel AX201 (wlp0s20f3).
+# Ağ — Intel AX201 (wlp0s20f3) NetworkManager tarafından yönetiliyor.
 { pkgs, ... }:
 {
   networking = {
     networkmanager = {
       enable = true;
 
-      # iwd is the modern backend for Intel cards; wpa_supplicant remains the
-      # NixOS default and is the safer choice for roaming between the Wi-Fi
-      # networks this laptop already knows. Switch by setting: wifi.backend = "iwd";
+      # iwd, Intel kartlar için modern arka uç; wpa_supplicant ise NixOS
+      # varsayılanı ve bu dizüstünün zaten bildiği ağlar arasında dolaşırken
+      # daha az sorun çıkarıyor. Değiştirmek için: wifi.backend = "iwd";
       wifi = {
         backend = "wpa_supplicant";
-        powersave = true; # laptop on battery
+        powersave = true; # pilde tasarruf
       };
     };
 
-    # Plasma has its own NetworkManager applet (plasma-nm), so no extra tray app.
+    # Plasma'nın kendi NetworkManager eklentisi (plasma-nm) var, ayrı bir tepsi
+    # uygulamasına gerek yok.
     firewall = {
       enable = true;
-      # KDE Connect ports are opened automatically by programs.kdeconnect
-      # (see desktop.nix); nothing else listens on this laptop.
+      # KDE Connect portlarını programs.kdeconnect kendisi açıyor
+      # (bkz. desktop.nix); bu dizüstünde başka dinleyen servis yok.
       allowedTCPPorts = [ ];
       allowedUDPPorts = [ ];
     };
 
-    # Resolve the homeserver by name without touching /etc/hosts on both sides.
+    # Homeserver'a isimle erişmek için (iki tarafta /etc/hosts uğraşmadan).
     hosts = {
       "192.168.1.3" = [ "homeserver" ];
     };
   };
 
-  # mDNS/.local discovery for printers and the homeserver.
+  # Yazıcılar ve homeserver için mDNS / .local keşfi.
   services.avahi = {
     enable = true;
     nssmdns4 = true;
     openFirewall = true;
   };
 
-  # OpenSSH client only; no sshd on the laptop. The homeserver is reached with
-  # the existing can@matebook key.
+  # Yalnızca OpenSSH istemcisi; dizüstünde sshd çalışmıyor. Homeserver'a mevcut
+  # can@matebook anahtarıyla bağlanılıyor.
   programs.ssh.startAgent = true;
 
   environment.systemPackages = with pkgs; [

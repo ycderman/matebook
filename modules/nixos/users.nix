@@ -1,4 +1,4 @@
-# User accounts.
+# Kullanıcı hesapları.
 { pkgs, ... }:
 {
   users.users.can = {
@@ -8,24 +8,24 @@
 
     extraGroups = [
       "wheel" # sudo
-      "networkmanager" # Wi-Fi from the Plasma applet
-      "video" # backlight control (intel_backlight)
+      "networkmanager" # Plasma eklentisinden Wi-Fi yönetimi
+      "video" # ekran parlaklığı (intel_backlight)
       "audio"
       "input"
     ];
 
-    # First-boot password only. Change it right after the first login with
-    # `passwd`, or replace this with `hashedPasswordFile` and set
-    # users.mutableUsers = false for a fully declarative account.
+    # Yalnızca ilk açılış parolası. İlk girişten hemen sonra `passwd` ile
+    # değiştir; ya da tamamen bildirimsel bir hesap için bunu
+    # `hashedPasswordFile` ile değiştirip users.mutableUsers = false yap.
     initialPassword = "nixos";
   };
 
-  # sudo for the wheel group, with a password.
+  # wheel grubu için parolalı sudo.
   security.sudo = {
     enable = true;
     wheelNeedsPassword = true;
   };
 
-  # No root login.
+  # root ile doğrudan giriş kapalı.
   users.users.root.hashedPassword = "!";
 }

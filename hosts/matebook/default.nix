@@ -1,7 +1,7 @@
-# Host entry point: matebook
+# Makine giriş noktası: matebook
 #
-# Everything reusable lives in ../../modules/nixos; only genuinely host-specific
-# facts belong here.
+# Yeniden kullanılabilir her şey ../../modules/nixos altında; buraya yalnızca
+# gerçekten bu makineye özgü bilgiler yazılır.
 { ... }:
 {
   imports = [
@@ -11,8 +11,8 @@
 
   networking.hostName = "matebook";
 
-  # The NixOS release this machine was first installed with. Never change it on
-  # an existing system — it pins stateful defaults (databases, service layouts).
-  # Installed from nixos-unstable while it tracked 26.11.
+  # Bu makinenin ilk kurulduğu NixOS sürümü. Kurulu bir sistemde ASLA değiştirme —
+  # durum tutan varsayılanları (veritabanı biçimleri, servis düzenleri) sabitler.
+  # nixos-unstable 26.11'i izlerken kuruldu.
   system.stateVersion = "26.11";
 }

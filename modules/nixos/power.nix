@@ -1,49 +1,72 @@
-# Power management for an 8 GiB Alder Lake-P laptop with no swap partition.
+# Güç yönetimi.
+#
+# İSTENEN DAVRANIŞ: bilgisayar hiçbir zaman kendiliğinden uykuya geçmez, kapak
+# kapatıldığında çalışmaya devam eder, ekran 10 dakika hareketsizlikten sonra
+# yalnızca kapanır (kilitlenmez).
+#
+# Bu davranışın iki ayağı var:
+#   * systemd-logind  -> aşağıdaki ayarlar (oturum açık olmasa da geçerli)
+#   * Plasma/powerdevil -> modules/home/plasma.nix içindeki powerdevil bölümü
+# İkisi de aynı yönde ayarlanmazsa biri diğerini bastırır.
+#
 # https://wiki.nixos.org/wiki/Laptop
 { ... }:
 {
   ##############################################################################
-  # CPU / thermal
+  # İşlemci / sıcaklık
   ##############################################################################
 
   powerManagement.enable = true;
 
-  # power-profiles-daemon over TLP: Plasma's battery applet talks to it
-  # directly, so the power profile can be switched from the panel. The two
-  # daemons manage the same knobs and must not run together — the wiki
-  # recommends picking one and disabling the other.
+  # TLP değil power-profiles-daemon: Plasma'nın pil eklentisi doğrudan bununla
+  # konuşuyor, güç profili panelden değiştirilebiliyor. İkisi aynı ayarları
+  # yönettiği için birlikte çalıştırılmamalı — wiki birini seçip diğerini
+  # kapatmayı öneriyor.
   services.power-profiles-daemon.enable = true;
   services.tlp.enable = false;
 
-  # Intel thermal daemon — relevant for the i5-12450H under sustained load.
+  # Intel termal daemon — i5-12450H sürekli yük altındayken önemli.
   services.thermald.enable = true;
 
   ##############################################################################
-  # Suspend / lid
+  # Kapak ve güç tuşu — otomatik uyku tamamen kapalı
   ##############################################################################
 
   services.logind.settings.Login = {
-    HandleLidSwitch = "suspend";
-    HandleLidSwitchExternalPower = "suspend";
-    HandleLidSwitchDocked = "ignore"; # stay awake on the HDMI monitor
-    HandlePowerKey = "suspend";
+    # Kapak kapalıyken çalışmaya devam et (harici ekran bağlı olsun olmasın).
+    HandleLidSwitch = "ignore";
+    HandleLidSwitchExternalPower = "ignore";
+    HandleLidSwitchDocked = "ignore";
+
+    # Güç tuşuna basınca logind karışmasın; Plasma kendi oturum kapatma
+    # ekranını gösterir (bkz. plasma.nix -> powerdevil.*.powerButtonAction).
+    HandlePowerKey = "ignore";
+
+    # Boşta kalınca hiçbir şey yapma.
+    IdleAction = "ignore";
   };
 
+  # Elle uyku (Plasma menüsünden "Askıya al") hâlâ mümkün; kapatılan yalnızca
+  # otomatik/olaya bağlı uyku.
+
   ##############################################################################
-  # Swap — zram only, since the disk layout has no swap partition
+  # Takas — disk düzeninde takas bölümü olmadığı için yalnızca zram
   ##############################################################################
   # https://wiki.nixos.org/wiki/Swap
 
   zramSwap = {
     enable = true;
     algorithm = "zstd";
-    memoryPercent = 50; # ~4 GiB of compressed swap on 8 GiB of RAM
+
+    # RAM ile aynı boyut: 8 GiB RAM -> 8 GiB zram aygıtı. Bu, aygıtın azami
+    # boyutu; sıkıştırılmış veri yalnızca gerçekten kullanıldığı kadar RAM tutar.
+    memoryPercent = 100;
   };
 
   # "When using zram for swap, it is highly recommended to enable a userspace
   #  OOM killer such as systemd-oomd."
   systemd.oomd.enable = true;
 
-  # Hibernation is not possible without a swap device large enough to hold RAM;
-  # this layout intentionally has none, so only suspend-to-idle is available.
+  # Hazırda bekletme (hibernate) bu düzende mümkün değil: RAM'i sığdıracak bir
+  # takas aygıtı yok ve zram'e hibernate yapılamaz.
 }

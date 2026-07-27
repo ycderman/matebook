@@ -1,29 +1,30 @@
-# Machine-specific: HUAWEI WMI platform driver (huawei-wmi).
+# Makineye özel: HUAWEI WMI platform sürücüsü (huawei-wmi).
 #
-# Verified on this laptop:
+# Bu dizüstünde doğrulandı:
 #   /sys/devices/platform/huawei-wmi/charge_control_thresholds  -> "80 85"
 #   /sys/devices/platform/huawei-wmi/fn_lock_state              -> 0
 #   /sys/class/power_supply/BAT0/charge_control_{start,end}_threshold
 #
-# The module itself is loaded from hardware.nix (boot.kernelModules).
+# Modülün kendisi hardware.nix içinde yükleniyor (boot.kernelModules).
 { ... }:
 {
-  # Battery charge thresholds. Applied by udev the moment the platform device
-  # appears, so it survives reboots and module reloads without a timing race.
+  # Pil şarj eşikleri. Platform aygıtı belirdiği anda udev tarafından
+  # uygulanıyor; böylece yeniden başlatmalarda ve modül yeniden yüklendiğinde
+  # zamanlama yarışı olmadan geçerli kalıyor.
   #
-  # Format is "<start> <end>": charging starts below <start>% and stops at
-  # <end>%. Keeping the battery off a full charge extends its life; set both to
-  # "0 100" to disable the limit before a trip.
+  # Biçim "<başlangıç> <bitiş>": şarj <başlangıç>%'nin altında başlar,
+  # <bitiş>%'de durur. Pili sürekli tam dolu tutmamak ömrünü uzatır; uzun bir
+  # yolculuk öncesi limiti kaldırmak için ikisini de "0 100" yap.
   services.udev.extraRules = ''
     ACTION=="add", SUBSYSTEM=="platform", KERNEL=="huawei-wmi", ATTR{charge_control_thresholds}="70 80"
   '';
 
-  # Fn-lock: 0 = media keys are primary (current behaviour), 1 = F1..F12 are
-  # primary. Uncomment to flip the default.
+  # Fn kilidi: 0 = medya tuşları birincil (şu anki davranış), 1 = F1..F12
+  # birincil. Varsayılanı değiştirmek için aşağıyı aç.
   # systemd.tmpfiles.rules = [
   #   "w /sys/devices/platform/huawei-wmi/fn_lock_state - - - - 1"
   # ];
 
-  # The Huawei WMI hotkeys show up as a normal input device ("Huawei WMI
-  # hotkeys") and are handled by Plasma; no extra key mapping needed.
+  # Huawei WMI kısayol tuşları sisteme normal bir girdi aygıtı olarak görünüyor
+  # ("Huawei WMI hotkeys") ve Plasma tarafından işleniyor; ek eşleme gerekmiyor.
 }

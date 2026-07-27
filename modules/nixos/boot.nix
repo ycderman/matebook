@@ -1,4 +1,4 @@
-# Boot loader — systemd-boot (the manual's recommended UEFI loader), not GRUB.
+# Önyükleyici — GRUB değil, systemd-boot (manual'ın UEFI için önerdiği seçenek).
 #
 # "The recommended option is systemd-boot: set the option
 #  boot.loader.systemd-boot.enable to true."
@@ -9,30 +9,30 @@
     systemd-boot = {
       enable = true;
 
-      # Keep the boot menu (and the 2 GiB ESP) from filling up with old
-      # generations; older generations stay reachable via `nixos-rebuild`.
+      # Boot menüsünün (ve 2 GiB'lik ESP'nin) eski kuşaklarla dolmasını önler;
+      # eski kuşaklara `nixos-rebuild` üzerinden hâlâ dönülebilir.
       configurationLimit = 15;
 
-      # Use the panel's native resolution for the boot menu.
+      # Boot menüsü için ekranın kendi çözünürlüğünü kullan.
       consoleMode = "max";
 
-      # Disable the interactive kernel command line editor: without it, anyone
-      # with physical access can boot with init=/bin/sh and become root.
+      # Etkileşimli çekirdek komut satırı düzenleyicisini kapat: açık kalırsa
+      # fiziksel erişimi olan biri init=/bin/sh ile root olabilir.
       editor = false;
     };
 
     efi = {
       canTouchEfiVariables = true;
-      efiSysMountPoint = "/boot"; # matches fileSystems."/boot" in hardware.nix
+      efiSysMountPoint = "/boot"; # hardware.nix'teki fileSystems."/boot" ile aynı
     };
 
-    # Explicitly off: this machine boots UEFI only.
+    # Açıkça kapalı: bu makine yalnızca UEFI ile açılıyor.
     grub.enable = false;
 
     timeout = 3;
   };
 
-  # Quiet boot. Plasma's login manager takes over almost immediately.
+  # Sessiz açılış. Plasma'nın giriş yöneticisi neredeyse anında devralıyor.
   boot.kernelParams = [
     "quiet"
     "udev.log_level=3"
@@ -40,9 +40,9 @@
   boot.consoleLogLevel = 3;
   boot.initrd.verbose = false;
 
-  # Note: no i915.enable_guc parameter here. Verified on this hardware that the
-  # kernel already loads adlp_guc + tgl_huc and enables GuC submission by
-  # default on Alder Lake-P, so forcing it would be redundant.
+  # NOT: burada i915.enable_guc parametresi YOK. Bu donanımda çekirdeğin zaten
+  # adlp_guc + tgl_huc firmware'ini yükleyip GuC submission'ı açtığı dmesg ile
+  # doğrulandı; parametreyi elle vermek gereksiz olurdu.
 
   boot.tmp.cleanOnBoot = true;
 }

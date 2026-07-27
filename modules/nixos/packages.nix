@@ -1,20 +1,20 @@
-# System-wide packages: tools that must exist before/without a user session.
-# Anything user-facing belongs in modules/home/packages.nix instead.
+# Sistem geneli paketler: kullanıcı oturumu olmadan da gerekebilecek araçlar.
+# Kullanıcıya dönük her şey modules/home/packages.nix içinde.
 { pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
-    # Editors / basics
-    vim
+    # Temel
+    nano
     git
     wget
     curl
 
-    # Archives
+    # Arşiv
     unzip
     zip
     p7zip
 
-    # Hardware inspection — the tools used to build this configuration
+    # Donanım inceleme — bu yapılandırmayı çıkarırken kullanılan araçlar
     pciutils # lspci
     usbutils # lsusb
     lm_sensors
@@ -23,24 +23,24 @@
     nvme-cli
     powertop
 
-    # Filesystem tooling for the ext4 root and the vfat ESP
+    # ext4 kök ve vfat ESP için dosya sistemi araçları
     e2fsprogs
     dosfstools
     parted
 
-    # Remote access to the homeserver (192.168.1.3)
+    # Homeserver'a (192.168.1.3) erişim
     sshfs
     nfs-utils
     rsync
   ];
 
-  # vim as the system editor for `sudoedit`, systemctl edit, etc.
-  environment.variables.EDITOR = "vim";
+  # sudoedit, `systemctl edit`, git vb. için sistem düzenleyicisi nano.
+  environment.variables.EDITOR = "nano";
 
-  # SSD housekeeping for the WD PC SN740.
+  # WD PC SN740 için SSD bakımı.
   services.fstrim.enable = true;
 
-  # SMART monitoring of the NVMe. Results are readable with
-  # `smartctl -a /dev/nvme0n1` and logged to the journal.
+  # NVMe'nin SMART izlemesi. Sonuçlar `smartctl -a /dev/nvme0n1` ile okunur,
+  # ayrıca journal'a yazılır.
   services.smartd.enable = true;
 }

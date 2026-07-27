@@ -8,12 +8,11 @@
 
     settings = {
       General = {
-        # Battery level reporting for devices that support it (the Logitech
-        # receiver on this machine already exposes hidpp_battery_0 over USB).
+        # Destekleyen cihazlarda pil seviyesi bildirimi.
         Experimental = true;
       };
     };
   };
 
-  # Plasma ships bluedevil as its Bluetooth front end, so no blueman here.
+  # Plasma'nın Bluetooth arayüzü bluedevil; ayrıca blueman kurulmuyor.
 }

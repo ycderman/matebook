@@ -1,4 +1,4 @@
-# Nix daemon settings: flakes, garbage collection, store optimisation.
+# Nix daemon ayarları: flake'ler, çöp toplama, store optimizasyonu.
 {
   inputs,
   pkgs,
@@ -33,21 +33,21 @@
       dates = [ "03:45" ];
     };
 
-    # Emergency valve: collect garbage when the 512 GB NVMe runs low.
+    # Acil durum valfi: 512 GB'lık NVMe dolmaya başlarsa kendiliğinden temizlik.
     extraOptions = ''
       min-free = ${toString (1024 * 1024 * 1024)}
       max-free = ${toString (5 * 1024 * 1024 * 1024)}
     '';
 
-    # Make `nix shell nixpkgs#...` and `<nixpkgs>` resolve to the exact same
-    # nixpkgs revision this system was built from.
+    # `nix shell nixpkgs#...` ve `<nixpkgs>` ifadelerinin, sistemin derlendiği
+    # nixpkgs sürümünün tam olarak aynısına çözülmesini sağlar.
     registry.nixpkgs.flake = inputs.nixpkgs;
     nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
   };
 
   nixpkgs.config.allowUnfree = true;
 
-  # Small quality-of-life tools for a flake-based system.
+  # Flake tabanlı bir sistemi rahat kullandıran küçük araçlar.
   environment.systemPackages = with pkgs; [
     nix-output-monitor
     nix-tree

@@ -1,28 +1,28 @@
-# Declarative Plasma 6 configuration via plasma-manager.
+# plasma-manager ile bildirimsel Plasma 6 yapılandırması.
 #
-# The NixOS wiki's KDE page notes: "With plasma-manager, it is possible to make
-# Plasma configurations via nix by providing home-manager modules" and that
-# "Plasma-Manager is a community project" — it is not part of nixpkgs, so its
-# option set is versioned independently of NixOS. Keep this file conservative
-# and let Plasma own anything not declared here.
+# NixOS Wiki'nin KDE sayfası şunu söylüyor: "With plasma-manager, it is possible
+# to make Plasma configurations via nix by providing home-manager modules" ve
+# "Plasma-Manager is a community project" — yani nixpkgs'in parçası değil,
+# seçenek kümesi NixOS'tan bağımsız sürümleniyor. Bu dosya bilinçli olarak dar
+# tutuldu; burada tanımlanmayan her şeyi Plasma kendi yönetiyor.
 #
-# To capture settings made through System Settings and turn them into Nix:
+# Sistem ayarlarından elle yaptığın değişiklikleri Nix'e dökmek için:
 #   nix run github:nix-community/plasma-manager
-# (rc2nix dumps the current Plasma rc files as programs.plasma options.)
+# (rc2nix, mevcut Plasma rc dosyalarını programs.plasma seçeneklerine çevirir.)
 { ... }:
 {
   programs.plasma = {
     enable = true;
 
-    # `overrideConfig = true` would wipe every setting not declared here on each
-    # activation. Left off so the desktop stays hand-tunable.
+    # `overrideConfig = true` olsaydı, burada tanımlanmayan her ayar her
+    # etkinleştirmede silinirdi. Masaüstü elle de ayarlanabilsin diye kapalı.
     overrideConfig = false;
 
     ############################################################################
-    # Look and feel
+    # Görünüm
     ############################################################################
     workspace = {
-      clickItemTo = "click"; # double-click to open, single-click to select
+      clickItemTo = "click"; # açmak için çift tıklama, seçmek için tek tıklama
       lookAndFeel = "org.kde.breezedark.desktop";
       colorScheme = "BreezeDark";
       iconTheme = "breeze-dark";
@@ -36,26 +36,36 @@
     };
 
     ############################################################################
-    # Panel — single bottom panel, 16:9 laptop panel at 1920x1080
+    # Panel — 1920x1080 dizüstü ekranı için tek alt panel
     ############################################################################
+    #
+    # Sıralama soldan sağa. Uygulama menüsünden hemen sonraki ilk ikon Konsole.
+    # (Sanal masaüstü değiştirici/pager panelden çıkarıldı ki Konsole gerçekten
+    # ilk ikon olsun; masaüstleri arasında Meta+1..4 ile geçilebiliyor.)
     panels = [
       {
         location = "bottom";
         height = 44;
         widgets = [
           "org.kde.plasma.kickoff"
-          "org.kde.plasma.pager"
-          "org.kde.plasma.icontasks"
+          {
+            iconTasks = {
+              launchers = [
+                "applications:org.kde.konsole.desktop"
+                "applications:org.kde.dolphin.desktop"
+                "applications:firefox.desktop"
+              ];
+            };
+          }
           "org.kde.plasma.marginsseparator"
           "org.kde.plasma.systemtray"
           "org.kde.plasma.digitalclock"
-          "org.kde.plasma.showdesktop"
         ];
       }
     ];
 
     ############################################################################
-    # Window manager
+    # Pencere yöneticisi
     ############################################################################
     kwin = {
       virtualDesktops = {
@@ -65,7 +75,7 @@
     };
 
     ############################################################################
-    # Shortcuts and hotkeys
+    # Kısayollar
     ############################################################################
     hotkeys.commands = {
       "launch-konsole" = {
@@ -90,23 +100,63 @@
     };
 
     ############################################################################
-    # Session lock
+    # Ekran kilidi — tamamen kapalı
     ############################################################################
+    #
+    # Ekran hiçbir zaman kilitlenmez: ne boşta kalınca, ne uyanışta, ne açılışta.
+    # (Açılıştaki Plasma Login Manager girişi bundan bağımsız, o duruyor.)
     kscreenlocker = {
-      autoLock = true;
-      timeout = 10; # minutes
-      lockOnResume = true;
+      autoLock = false;
+      lockOnResume = false;
+      lockOnStartup = false;
     };
 
     ############################################################################
-    # Raw rc-file entries for anything without a dedicated option
+    # Güç yönetimi — asla uyuma, 10 dakika sonra yalnızca ekranı kapat
+    ############################################################################
+    #
+    # Üç profil de (prize takılı / pil / pil azken) aynı davranışta, çünkü
+    # istenen "hiçbir zaman uykuya geçmesin". Bunun sistem tarafındaki eşi
+    # modules/nixos/power.nix içindeki services.logind.settings.Login ayarları;
+    # ikisi birlikte çalışmalı.
+    #
+    # Not: batteryLevels.criticalAction bilerek ayarlanmadı — pil kritik
+    # seviyeye düştüğünde Plasma'nın varsayılan koruması (veri kaybını önlemek
+    # için kapanma) devrede kalsın.
+    powerdevil =
+      let
+        asla = {
+          # Otomatik askıya alma yok.
+          autoSuspend.action = "nothing";
+
+          # Kapak kapatılınca hiçbir şey yapma — bilgisayar çalışmaya devam eder.
+          whenLaptopLidClosed = "doNothing";
+
+          # 10 dakika (600 saniye) hareketsizlikten sonra yalnızca ekranı kapat.
+          turnOffDisplay.idleTimeout = 600;
+
+          # Ekranı önceden karartma; tek adımda kapansın.
+          dimDisplay.enable = false;
+
+          # Güç tuşu Plasma'nın oturum kapatma ekranını açsın.
+          powerButtonAction = "showLogoutScreen";
+        };
+      in
+      {
+        AC = asla;
+        battery = asla;
+        lowBattery = asla;
+      };
+
+    ############################################################################
+    # Karşılığı olan seçeneği bulunmayan ayarlar için ham rc girdileri
     ############################################################################
     configFile = {
-      # Baloo's file indexer is the biggest background I/O consumer on an
-      # 8 GiB machine; Plasma search still works for applications.
+      # Baloo dosya indeksleyicisi 8 GiB'lik bir makinede arka planda en çok
+      # disk/CPU yiyen bileşen; uygulama araması bundan etkilenmiyor.
       "baloofilerc"."Basic Settings"."Indexing-Enabled".value = false;
 
-      # Turkish number/date formats already come from the system locale.
+      # Varsayılan tarayıcı (modules/nixos/firefox.nix ile kurulan Firefox).
       "kdeglobals"."General"."BrowserApplication".value = "firefox.desktop";
     };
   };

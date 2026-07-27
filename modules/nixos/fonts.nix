@@ -1,4 +1,4 @@
-# Fonts — full Turkish coverage plus a coding font.
+# Yazı tipleri — tam Türkçe karakter kapsamı ve bir kodlama fontu.
 { pkgs, ... }:
 {
   fonts = {
@@ -21,7 +21,7 @@
         emoji = [ "Noto Color Emoji" ];
       };
 
-      # Subpixel rendering suits the laptop's LCD panel.
+      # Dizüstünün LCD paneline uygun alt piksel işleme.
       subpixel.rgba = "rgb";
       hinting.style = "slight";
     };

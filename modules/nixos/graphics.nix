@@ -1,24 +1,23 @@
-# Intel graphics — Alder Lake-P GT1 [UHD Graphics], PCI 8086:46a3 (Gen12).
+# Intel ekran kartı — Alder Lake-P GT1 [UHD Graphics], PCI 8086:46a3 (Gen12).
 # https://wiki.nixos.org/wiki/Intel_Graphics
 { pkgs, ... }:
 {
   hardware.graphics = {
     enable = true;
-    enable32Bit = true; # 32-bit GL for Steam/Wine
+    enable32Bit = true; # Steam/Wine için 32-bit GL
 
     extraPackages = with pkgs; [
-      intel-media-driver # VA-API (iHD) — the wiki's recommendation over intel-vaapi-driver
-      vpl-gpu-rt # oneVPL / QuickSync runtime
+      intel-media-driver # VA-API (iHD) — wiki bunu intel-vaapi-driver'a tercih ediyor
+      vpl-gpu-rt # oneVPL / QuickSync çalışma zamanı
       intel-compute-runtime # OpenCL + Level Zero
     ];
   };
 
-  # iHD is the modern VA-API backend for Gen12.
+  # Gen12 için modern VA-API arka ucu iHD.
   environment.sessionVariables.LIBVA_DRIVER_NAME = "iHD";
 
-  # No i915.force_probe needed: 8086:46a3 has been supported out of the box
-  # since the Alder Lake-P enablement landed upstream, and the running kernel
-  # on this machine probes it without any parameter.
+  # i915.force_probe gerekmiyor: 8086:46a3 çekirdek tarafından hiçbir parametre
+  # olmadan tanınıyor (bu makinede doğrulandı).
 
   environment.systemPackages = with pkgs; [
     libva-utils # vainfo

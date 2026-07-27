@@ -1,4 +1,4 @@
-# Home Manager configuration for user `can`.
+# `can` kullanıcısı için Home Manager yapılandırması.
 { ... }:
 {
   imports = [
@@ -11,7 +11,8 @@
   home.username = "can";
   home.homeDirectory = "/home/can";
 
-  # Same rule as system.stateVersion: set once, never bump on an existing home.
+  # system.stateVersion ile aynı kural: bir kez ayarlanır, mevcut bir ev
+  # dizininde sonradan yükseltilmez.
   home.stateVersion = "26.11";
 
   programs.home-manager.enable = true;

@@ -1,34 +1,34 @@
-# KDE Plasma 6 on Wayland, with the new Plasma Login Manager instead of SDDM.
+# Wayland üzerinde KDE Plasma 6, SDDM yerine yeni Plasma Login Manager ile.
 # https://wiki.nixos.org/wiki/KDE
 { pkgs, ... }:
 {
   services.desktopManager.plasma6.enable = true;
 
-  # Plasma's own login manager (the KDE replacement for SDDM).
+  # Plasma'nın kendi giriş yöneticisi (KDE'nin SDDM yerine geçen bileşeni).
   services.displayManager.plasma-login-manager.enable = true;
 
-  # Plasma 6 runs on Wayland by default, so defaultSession is left unset.
-  # Set it to "plasmax11" here if an X11 session is ever needed:
+  # Plasma 6 varsayılan olarak Wayland'de çalışır, bu yüzden defaultSession
+  # ayarlanmadı. X11 oturumu gerekirse:
   # services.displayManager.defaultSession = "plasmax11";
 
-  # No X server: only XWayland (pulled in by the Plasma 6 module) is used for
-  # legacy applications.
+  # X sunucusu yok: eski uygulamalar için yalnızca XWayland kullanılıyor
+  # (plasma6 modülü kendisi getiriyor).
   services.xserver.enable = false;
 
-  # Trim the default Plasma package set.
+  # Varsayılan Plasma paket setinden çıkarılanlar.
   environment.plasma6.excludePackages = with pkgs.kdePackages; [
-    elisa # music player — not used
-    khelpcenter # offline KDE docs
-    kwrited # wall/write message daemon
+    elisa # müzik oynatıcı — kullanılmıyor
+    khelpcenter # çevrimdışı KDE yardım belgeleri
+    kwrited # wall/write mesaj daemon'u
   ];
 
-  # KDE Connect, including its firewall ports.
+  # KDE Connect (güvenlik duvarı portlarını da kendisi açar).
   programs.kdeconnect.enable = true;
 
-  # Partition manager needs the polkit-backed helper service to be enabled.
+  # Bölüm yöneticisinin polkit tabanlı yardımcı servisi.
   programs.partition-manager.enable = true;
 
-  # Plasma applications that are *not* part of the plasma6 default set.
+  # plasma6 varsayılan setinde OLMAYAN uygulamalar.
   environment.systemPackages = with pkgs; [
     kdePackages.filelight
     kdePackages.kcalc
@@ -37,9 +37,9 @@
     wl-clipboard
   ];
 
-  # Portals for screen sharing and file dialogs under Wayland are configured by
-  # the plasma6 module (xdg-desktop-portal-kde); nothing to add here.
+  # Wayland altında ekran paylaşımı ve dosya seçici için gereken portal'ları
+  # (xdg-desktop-portal-kde) plasma6 modülü yapılandırıyor, ek bir şey gerekmiyor.
 
-  # Faster app startup / consistent theming for the few GTK apps in use.
+  # Az sayıdaki GTK uygulaması için tutarlı tema ve ayar depolama.
   programs.dconf.enable = true;
 }

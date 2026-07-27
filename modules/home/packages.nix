@@ -1,4 +1,4 @@
-# User-level packages. System tooling lives in modules/nixos/packages.nix.
+# Kullanıcı seviyesindeki paketler. Sistem araçları modules/nixos/packages.nix'te.
 { pkgs, ... }:
 {
   home.packages = with pkgs; [
@@ -13,15 +13,15 @@
     tree
     ncdu
 
-    # Media (hardware accelerated through iHD / VA-API)
+    # Medya (iHD / VA-API üzerinden donanım hızlandırmalı)
     mpv
     ffmpeg
 
-    # Browser (referenced by kdeglobals BrowserApplication in plasma.nix)
-    firefox
-
-    # okular / gwenview / spectacle / kate already come with the Plasma 6
-    # module's default package set — see environment.plasma6.excludePackages
-    # in modules/nixos/desktop.nix for trimming it.
+    # Firefox burada değil: politikalar ve eklentilerle birlikte
+    # modules/nixos/firefox.nix içinde tanımlı.
+    #
+    # okular / gwenview / spectacle / kate zaten Plasma 6 modülünün varsayılan
+    # paket setiyle geliyor — bu seti kırpmak için
+    # modules/nixos/desktop.nix -> environment.plasma6.excludePackages.
   ];
 }
