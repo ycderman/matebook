@@ -353,7 +353,15 @@ export NIX_CONFIG="experimental-features = nix-command flakes"
 nixos-install --flake /mnt/etc/nixos#matebook
 ```
 
-İlk çalıştırmada `flake.lock` üretilir. Kurulum bitince `reboot`.
+İlk çalıştırmada `flake.lock` üretilir.
+
+Son adımda `nixos-install` root parolasını soracak — **burada bir parola belirle.**
+Yapılandırma root parolasını bilerek tanımlamıyor (bkz. `modules/nixos/users.nix`),
+o yüzden burada verdiğin parola kalıcı; sonraki `rebuild`'lerde geri alınmaz.
+Acil durum moduna düşülürse tek kurtarma yolu bu parola, çünkü
+`boot.loader.systemd-boot.editor = false` çekirdek satırını düzenlemeyi kapatıyor.
+
+Kurulum bitince `reboot`.
 
 ### 8. İlk açılış
 

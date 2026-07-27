@@ -55,6 +55,16 @@
     ];
   };
 
-  # root ile doğrudan giriş kapalı.
-  users.users.root.hashedPassword = "!";
+  # root parolası bilerek burada tanımlanmadı.
+  #
+  # Bildirimsel olarak ayarlansaydı (hashedPassword / initialPassword) her
+  # `nixos-rebuild switch` bu değeri yeniden uygular ve elle `passwd root` ile
+  # verilen parolayı sessizce geri alırdı. Tanımlanmadığı için root parolası
+  # tamamen elle yönetiliyor: kurulumda `nixos-install`'ın sorduğu yerde
+  # belirlenen parola kalıcı oluyor, sonradan `passwd root` ile değiştirilebiliyor.
+  #
+  # Bu ayrıca acil durum modunu (emergency shell) kullanılabilir tutuyor —
+  # boot.loader.systemd-boot.editor = false olduğu için çekirdek satırını
+  # düzenleyip root'a düşmek mümkün değil, geriye tek kurtarma yolu olarak
+  # root parolası kalıyor.
 }
