@@ -22,7 +22,9 @@
     # Görünüm
     ############################################################################
     workspace = {
-      clickItemTo = "click"; # açmak için çift tıklama, seçmek için tek tıklama
+      # "select" = tek tıklama seçer, çift tıklama açar (klasik davranış).
+      # Diğer geçerli değer "open": tek tıklama doğrudan açar.
+      clickItemTo = "select";
       lookAndFeel = "org.kde.breezedark.desktop";
       colorScheme = "BreezeDark";
       iconTheme = "breeze-dark";

@@ -3,10 +3,14 @@
   programs.git = {
     enable = true;
 
-    userName = "ycderman";
-    userEmail = "y.canderman@proton.me";
+    # Home Manager'ın yeni arayüzü: userName / userEmail / extraConfig
+    # seçenekleri `settings` altında birleştirildi.
+    settings = {
+      user = {
+        name = "ycderman";
+        email = "y.canderman@proton.me";
+      };
 
-    extraConfig = {
       init.defaultBranch = "main";
       pull.rebase = true;
       push.autoSetupRemote = true;

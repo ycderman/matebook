@@ -52,6 +52,6 @@
     nix-output-monitor
     nix-tree
     nvd
-    nixfmt-rfc-style
+    nixfmt # eskiden nixfmt-rfc-style; artık ikisi aynı paket
   ];
 }

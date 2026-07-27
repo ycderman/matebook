@@ -22,7 +22,7 @@
   environment.systemPackages = with pkgs; [
     libva-utils # vainfo
     intel-gpu-tools # intel_gpu_top
-    glxinfo
+    mesa-demos # glxinfo, glxgears (glxinfo paketi bunun içine taşındı)
     vulkan-tools
   ];
 }
