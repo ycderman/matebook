@@ -18,8 +18,9 @@
     # uygulamasına gerek yok.
     firewall = {
       enable = true;
-      # KDE Connect portlarını programs.kdeconnect kendisi açıyor
-      # (bkz. desktop.nix); bu dizüstünde başka dinleyen servis yok.
+      # Portları modüllerin kendisi açıyor: KDE Connect'i programs.kdeconnect
+      # (bkz. desktop.nix), 22'yi services.openssh.openFirewall (aşağıda),
+      # mDNS'i services.avahi.openFirewall.
       allowedTCPPorts = [ ];
       allowedUDPPorts = [ ];
     };
@@ -37,9 +38,30 @@
     openFirewall = true;
   };
 
-  # Yalnızca OpenSSH istemcisi; dizüstünde sshd çalışmıyor. Homeserver'a mevcut
-  # can@matebook anahtarıyla bağlanılıyor.
+  # İstemci tarafı: homeserver'a mevcut can@matebook anahtarıyla bağlanılıyor.
   programs.ssh.startAgent = true;
+
+  # sshd — bu dizüstüne LAN'dan (192.168.1.2) bağlanmak için.
+  #
+  # DİKKAT: openFirewall bütün arayüzlerde 22'yi açıyor, yani kafe/otel Wi-Fi'ına
+  # bağlanınca sshd o ağa da açık oluyor. Parola girişini kapatmak (aşağıya bkz.)
+  # bunu kabul edilebilir kılan asıl önlem.
+  services.openssh = {
+    enable = true;
+    openFirewall = true;
+
+    settings = {
+      PermitRootLogin = "no";
+
+      # Anahtarla giriş kurulana kadar açık. Bağlanacağın makinenin açık
+      # anahtarını users.users.can.openssh.authorizedKeys.keys listesine ekleyip
+      # burayı false yap — dizüstü dış ağlara çıktığı için asıl güvenlik bu.
+      PasswordAuthentication = true;
+
+      KbdInteractiveAuthentication = false;
+      X11Forwarding = false;
+    };
+  };
 
   environment.systemPackages = with pkgs; [
     ethtool
