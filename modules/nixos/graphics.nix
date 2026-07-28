@@ -19,10 +19,27 @@
   # i915.force_probe gerekmiyor: 8086:46a3 çekirdek tarafından hiçbir parametre
   # olmadan tanınıyor (bu makinede doğrulandı).
 
+  # DDC/CI — harici monitörün (LG ULTRAGEAR, HDMI-A-1) parlaklık kontrolü.
+  #
+  # Bu kurulumda parlaklık için tek yol bu: kapak kapalı olduğundan dahili panel
+  # eDP-1 devre dışı, dolayısıyla intel_backlight kullanılamıyor. I2C olmadan
+  # PowerDevil hiç parlaklık kaynağı bulamıyor ve Plasma'daki kaydırıcı hiç
+  # görünmüyor (libddcutil "Returned DDCA_Display_Ref list:" boş dönüyor).
+  #
+  # hardware.i2c.enable: i2c-dev modülünü yükler, i2c grubunu ve /dev/i2c-*
+  # üzerinde oturum kullanıcısına ACL veren udev kuralını oluşturur.
+  # Kullanıcının i2c grubuna eklenmesi users.nix içinde.
+  #
+  # Not: bu monitör VCP D6'yı (Power mode) desteklemiyor — okuma da yazma da
+  # DDCRC_REPORTED_UNSUPPORTED dönüyor. Yani `ddcutil setvcp D6 04` ile
+  # monitörü uyutmak mümkün değil, denenip doğrulandı. Sadece parlaklık çalışır.
+  hardware.i2c.enable = true;
+
   environment.systemPackages = with pkgs; [
     libva-utils # vainfo
     intel-gpu-tools # intel_gpu_top
     mesa-demos # glxinfo, glxgears (glxinfo paketi bunun içine taşındı)
     vulkan-tools
+    ddcutil # DDC/CI: harici monitör parlaklığı
   ];
 }

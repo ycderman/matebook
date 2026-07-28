@@ -36,6 +36,9 @@
   boot.kernelParams = [
     "quiet"
     "udev.log_level=3"
+    # Harici monitör DPMS uykusuna girerken HDMI hotplug hattını düşürüyor.
+    # Çıkışı bağlı tutarak KWin'in ekranı kaldırıp yeniden etkinleştirmesini önle.
+    "video=HDMI-A-1:2560x1440@60D"
   ];
   boot.consoleLogLevel = 3;
   boot.initrd.verbose = false;

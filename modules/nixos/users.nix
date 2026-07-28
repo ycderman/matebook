@@ -12,6 +12,7 @@
       "video" # ekran parlaklığı (intel_backlight)
       "audio"
       "input"
+      "i2c" # harici monitör parlaklığı, DDC/CI (bkz. graphics.nix)
     ];
 
     # Yalnızca ilk açılış parolası. İlk girişten hemen sonra `passwd` ile
