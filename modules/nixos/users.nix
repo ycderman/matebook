@@ -15,10 +15,11 @@
       "i2c" # harici monitör parlaklığı, DDC/CI (bkz. graphics.nix)
     ];
 
-    # Yalnızca ilk açılış parolası. İlk girişten hemen sonra `passwd` ile
-    # değiştir; ya da tamamen bildirimsel bir hesap için bunu
-    # `hashedPasswordFile` ile değiştirip users.mutableUsers = false yap.
-    initialPassword = "nixos";
+    # Parola bilerek burada tanımlanmadı (initialPassword yok): sshd parola
+    # girişine açıkken depoda/README'de yazan sabit bir ilk parola, ilk açılışta
+    # LAN'a NOPASSWD sudo'lu bir hesap açardı. Parola kurulumda elle belirlenir:
+    #   nixos-enter --root /mnt -c 'passwd can'
+    # (README, Adım 9). Belirlenmezse hesap kilitli kalır ve giriş yapılamaz.
   };
 
   security.sudo = {

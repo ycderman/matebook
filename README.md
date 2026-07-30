@@ -56,43 +56,68 @@ configuration independent from device changes."*
 
 ```
 nixos-config/
-├── flake.nix                    # inputs: nixpkgs-unstable, home-manager, plasma-manager
+├── flake.nix                    # inputs: nixpkgs-unstable, home-manager, plasma-manager, cinevara
 ├── flake.lock                   # test edilmiş girdi sürümleri (depoya işlendi)
+├── LICENSE                      # MIT
 ├── hosts/
 │   └── matebook/
 │       ├── default.nix          # hostname + stateVersion, modülleri toplar
 │       └── hardware.nix         # elle yazılmış donanım profili (label'lı fileSystems)
+├── pkgs/
+│   └── claude-desktop/          # resmi .deb'in Nix repaketlemesi + update.sh
 └── modules/
     ├── nixos/                   # sistem seviyesi modüller
     │   ├── default.nix          # hepsini import eder
     │   ├── boot.nix             # systemd-boot
     │   ├── nix.nix              # flakes, gc, optimise, registry
     │   ├── locale.nix           # tr_TR.UTF-8, Europe/Istanbul, trq / xkb tr
-    │   ├── network.nix          # NetworkManager, firewall, avahi, homeserver
+    │   ├── network.nix          # NetworkManager, firewall, avahi, homeserver, sshd
     │   ├── audio.nix            # PipeWire + rtkit
-    │   ├── graphics.nix         # Intel Gen12: VA-API, QSV/oneVPL, Vulkan/OpenCL
+    │   ├── graphics.nix         # Intel Gen12: VA-API, QSV/oneVPL, Vulkan/OpenCL, DDC/CI
     │   ├── firmware.nix         # redistributable firmware + fwupd
     │   ├── bluetooth.nix        # AX201 BT, BlueZ ve codec davranışı
     │   ├── power.nix            # ppd, thermald, logind (uyku yok), zram, oomd
     │   ├── huawei.nix           # huawei-wmi: pil şarj eşikleri, fn-lock
     │   ├── desktop.nix          # Plasma 6 + plasma-login-manager
     │   ├── firefox.nix          # politikalar, Wayland video, dil paketi, eklentiler
+    │   ├── claude-desktop.nix   # pkgs/claude-desktop overlay'i + Cowork VM yolları
     │   ├── fonts.nix
-    │   ├── packages.nix         # sistem araçları, nano, fstrim, smartd
-    │   ├── storage.nix          # homeserver NFS/SSHFS (yorumlu örnek)
-    │   ├── users.nix            # kullanıcı can
+    │   ├── packages.nix         # sistem araçları, nano, EDITOR/VISUAL, fstrim, smartd
+    │   ├── storage.nix          # homeserver NFS (soft mount, bilinçli tercih)
+    │   ├── users.nix            # kullanıcı can (parola kurulumda elle belirlenir)
     │   └── home-manager.nix     # HM'i NixOS modülü olarak bağlar
     └── home/                    # kullanıcı seviyesi modüller
         ├── default.nix
         ├── packages.nix
-        ├── shell.nix            # bash + direnv, EDITOR=nano
+        ├── shell.nix            # bash + direnv, rebuild/update alias'ları (gh token'lı)
         ├── nix-shell-fix.nix    # Türkçe "İ" hatasına karşı nix sarmalayıcıları
         ├── git.nix
+        ├── cinevara.nix         # github:ycderman/Cinevara paketini kurar
+        ├── mpv.nix              # hwdec=auto-safe
         └── plasma.nix           # plasma-manager: panel, powerdevil, kilit kapalı
 ```
 
 Modül eklemek için: dosyayı `modules/nixos/` altına koy, `modules/nixos/default.nix`
 içindeki `imports` listesine bir satır ekle. Başka hiçbir yeri değiştirmen gerekmez.
+
+## Cinevara (özel depo) ve GitHub token'ı
+
+`inputs.cinevara = github:ycderman/Cinevara` **özel bir depo** — nix'in onu
+indirebilmesi için GitHub kimliği gerekiyor. Token hiçbir dosyaya yazılmıyor;
+iki yerde çözülüyor:
+
+- **Günlük kullanım:** `rebuild`/`update` alias'ları (`modules/home/shell.nix`)
+  `--option access-tokens "github.com=$(gh auth token)"` geçiyor. Tek önkoşul,
+  ilk açılıştan sonra bir kez `gh auth login` çalıştırmış olmak.
+- **Kurulum sırasında:** ISO'da `gh` yok; Adım 8'de `NIX_CONFIG` içine
+  token elle yazılıyor (başka bir makinede `gh auth token` çıktısını al ya da
+  github.com/settings/tokens adresinden salt-okunur bir token üret).
+
+Commit'lenmemiş yerel Cinevara değişikliklerini denemek için:
+
+```bash
+rebuild-test --override-input cinevara path:$HOME/Projects/Cinevara
+```
 
 ## `nix-shell -p python3` hatası ve çözümü
 
@@ -266,33 +291,31 @@ Plasma arayüzünü varsayılan `bluedevil` sağlar; ikinci bir yönetici olarak
 
 ## Doğrulama durumu
 
-`ed5f88b` temel yapılandırması gerçek `nix` ile değerlendirilmişti:
+Mevcut yapılandırma (Cinevara `github:` input'u dahil) Tumbleweed çalışma
+ortamına kurulan gerçek `nix 2.35.1` ile tam olarak değerlendirildi:
 
 ```
-$ nix eval github:ycderman/matebook#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
-"/nix/store/p0s0jsxm0qvnz7s6zmwf1fdmqqc2b9rn-nixos-system-matebook-26.11.20260726.624af66.drv"
+$ nix eval .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
+"/nix/store/lrd12r17dmbik38vlqd4ilc9pkc4y76c-nixos-system-matebook-26.11.20260726.624af66.drv"
 
-$ nix build --dry-run github:ycderman/matebook#nixosConfigurations.matebook.config.system.build.toplevel
-these 388 derivations will be built            ← hepsi systemd unit / udev kuralı gibi
+$ nix flake check --no-build
+all checks passed!
+
+$ nix build --dry-run .#nixosConfigurations.matebook.config.system.build.toplevel
+these 426 derivations will be built            ← hepsi systemd unit / udev kuralı gibi
                                                  önemsiz yapılandırma dosyaları
-these 1714 paths will be fetched (4.9 GiB download, 13.0 GiB unpacked)
+these 1879 paths will be fetched (5.4 GiB download, 15.0 GiB unpacked)
 ```
 
 - Sıfır hata, sıfır kullanımdan kaldırma uyarısı.
 - Ağır hiçbir paket kaynaktan derlenmiyor; her şey resmi ikili önbellekten geliyor.
+- Bütün `.nix` dosyaları `nixfmt 1.4.0 --check` kontrolünden geçiyor
+  (`pkgs/claude-desktop/default.nix` bu vesileyle repo formatına çekildi).
 - `flake.lock` depoya işlendi, yani kurulumda tam olarak bu sürümler kullanılacak
-  (nixpkgs `624af66`, home-manager `cbb7767`, plasma-manager `c551f06`).
+  (nixpkgs `624af66`, home-manager `cbb7767`, plasma-manager `c551f06`,
+  cinevara `70c26b7`).
 
-Son görüntü/codec değişiklikleri Nix kurulu olmayan Tumbleweed çalışma
-ortamında yapıldı. Değiştirilen Nix dosyaları resmî `nixfmt 1.4.0 --check`
-kontrolünden geçti; tam modül değerlendirmesi NixOS kurulumundan önce şu
-komutla yeniden yapılmalı:
-
-```bash
-nix eval .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
-```
-
-Bu doğrulama sırasında bulunup düzeltilen gerçek hatalar:
+Doğrulamalar sırasında bulunup düzeltilen gerçek hatalar:
 
 | Hata | Düzeltme |
 |---|---|
@@ -301,6 +324,9 @@ Bu doğrulama sırasında bulunup düzeltilen gerçek hatalar:
 | `noto-fonts-emoji` yeniden adlandırılmış | `noto-fonts-color-emoji` |
 | `programs.git.{userName,userEmail,extraConfig}` taşınmış | `programs.git.settings` altında |
 | `nixfmt-rfc-style` artık gereksiz | `nixfmt` |
+| `cinevara` input'u `path:/home/can/...` — ISO'da/başka makinede hiç değerlendirilemiyordu | `github:ycderman/Cinevara` + `follows nixpkgs` |
+| `pkgs.system` kullanımdan kaldırılmış (eval uyarısı) | `pkgs.stdenv.hostPlatform.system` |
+| `xorg.libX11` vb. paket seti kullanımdan kaldırılmış (eval uyarısı) | üst düzey `libx11`, `libxcb`, … |
 
 Doğrulamanın **kapsamadığı** şey: çalışma zamanı davranışı. Değerlendirme,
 `plasma-login-manager`'ın gerçekten açılacağını ya da `huawei-wmi` udev
@@ -498,10 +524,14 @@ git add -A
 ## Adım 8 — Kurulumdan önce doğrula
 
 Bu adım diske hiçbir şey yazmaz; amacı hatalı bir seçeneği kurulum başlamadan
-yakalamak. Önce flake'leri aç:
+yakalamak. Önce flake'leri aç ve Cinevara'nın özel deposu için GitHub token'ını
+ver (`<TOKEN>` yerine başka bir makinede `gh auth token` çıktısını ya da
+github.com/settings/tokens adresinden ürettiğin salt-okunur bir token'ı yaz —
+buradaki `export` yalnızca bu kabuk oturumunda yaşar, diske yazılmaz):
 
 ```bash
-export NIX_CONFIG="experimental-features = nix-command flakes"
+export NIX_CONFIG="experimental-features = nix-command flakes
+access-tokens = github.com=<TOKEN>"
 ```
 
 **Asıl kontrol — sadece değerlendirme, hiçbir şey derlemez:**
@@ -551,6 +581,16 @@ nixos-install --flake .#matebook
   Sistem bir gün acil durum moduna düşerse tek kurtarma yolu bu parola, çünkü
   `boot.loader.systemd-boot.editor = false` çekirdek satırını düzenlemeyi kapatıyor.
 
+**Ardından `can` kullanıcısının parolasını belirle — bu adım atlanırsa hesap
+kilitli kalır ve giriş ekranından oturum açılamaz.** Yapılandırma bilerek
+`initialPassword` tanımlamıyor: sshd parola girişine açıkken depoda yazan sabit
+bir ilk parola, ilk açılışta LAN'a NOPASSWD sudo'lu bir hesap açmış olurdu.
+Parolayı kurulumda kendin belirliyorsun:
+
+```bash
+nixos-enter --root /mnt -c 'passwd can'
+```
+
 Bittiğinde:
 
 ```bash
@@ -561,23 +601,21 @@ USB belleği çıkarmayı unutma.
 
 ## Adım 10 — İlk açılış
 
-Plasma Login Manager açılmalı. Kullanıcı `can`, parola `nixos`.
+Plasma Login Manager açılmalı. Kullanıcı `can`, parolası kurulumda
+`nixos-enter ... passwd can` ile belirlediğin parola.
 
-Sırayla:
-
-```bash
-passwd                       # 1. can'in geçici parolasını değiştir
-sudo passwd root             # 2. istersen root parolasını da tazele
-```
-
-Yapılandırmayı ev dizinine al — kabuk kısayolları `~/nixos-config` bekliyor:
+Yapılandırmayı ev dizinine al — kabuk kısayolları `~/nixos-config` bekliyor.
+İki kopyanın zamanla ayrışmaması için `/etc/nixos` silinip yerine sembolik
+bağlantı konuyor; böylece tek konum `~/nixos-config` oluyor ve `/etc/nixos`
+bekleyen her araç da aynı ağacı görüyor:
 
 ```bash
-sudo cp -r /etc/nixos ~/nixos-config
+sudo mv /etc/nixos ~/nixos-config
 sudo chown -R can:$(id -gn) ~/nixos-config
+sudo ln -s /home/can/nixos-config /etc/nixos
 ```
 
-`.git` dizini de kopyalandığı için `origin` korunur. Push edebilmek için yeni
+`.git` dizini de taşındığı için `origin` korunur. Push edebilmek için yeni
 bir SSH anahtarı gerekiyor (eski anahtarların diskle birlikte silindi):
 
 ```bash
@@ -587,6 +625,13 @@ git -C ~/nixos-config remote set-url origin git@github.com:ycderman/matebook.git
 ```
 
 Aynı anahtarı homeserver'ın `authorized_keys` dosyasına eklemeyi de unutma.
+
+Son olarak `gh` ile GitHub'a giriş yap — `rebuild`/`update` alias'ları Cinevara'nın
+özel deposunu çekebilmek için token'ı `gh auth token` üzerinden alıyor:
+
+```bash
+gh auth login        # SSH protokolünü seç, tarayıcıyla doğrula
+```
 
 ## Adım 11 — Bir şeyler ters giderse
 
@@ -618,13 +663,15 @@ durduğu için hiçbir şey kaybolmaz.
 ## Günlük kullanım
 
 ```bash
-rebuild        # sudo nixos-rebuild switch --flake ~/nixos-config#matebook
+rebuild        # sudo nixos-rebuild switch --flake ~/nixos-config#matebook + gh token
 rebuild-test   # kalıcı olmayan deneme
 rebuild-boot   # bir sonraki açılışta geçerli
-update         # nix flake update --flake ~/nixos-config
+update         # nix flake update --flake ~/nixos-config + gh token
 ```
 
-Alias'lar `modules/home/shell.nix` içinde. Değişiklikten sonra
+Alias'lar `modules/home/shell.nix` içinde; dördü de Cinevara'nın özel deposu
+için `--option access-tokens "github.com=$(gh auth token)"` geçiyor (önkoşul:
+bir kez `gh auth login`). Değişiklikten sonra
 `nixos-rebuild dry-build --flake .#matebook` ile derlemeyi denemek iyi bir alışkanlık.
 
 ## Kurulum sonrası doğrulama
@@ -641,6 +688,8 @@ bluetoothctl show                    # Powered: yes
 wpctl status                         # PipeWire/WirePlumber aygıtları
 zramctl                              # zram takas — 8 GiB görünmeli
 cat /sys/devices/platform/huawei-wmi/charge_control_thresholds   # 70 80
+oomctl                               # "Swap Monitored CGroups" -.slice'ı,
+                                     # "Memory Pressure" user@*.service'i listelemeli
 systemctl status power-profiles-daemon thermald
 locale                               # hepsi tr_TR.UTF-8 olmalı (LC_CTYPE dahil)
 type nix-shell                       # /etc/profiles/per-user/can/bin/nix-shell (sarmalayıcı)
@@ -664,8 +713,10 @@ Türkçe kalmış, `C.UTF-8` yalnızca derleme ortamının içine verilmiş deme
   konuşuyor; ikisi aynı ayarları yönettiği için birlikte çalıştırılmamalı.
 - **zram = RAM** — `memoryPercent = 100`, yani 8 GiB RAM'e 8 GiB zram aygıtı.
   Bu, aygıtın azami boyutu; sıkıştırılmış veri yalnızca kullanıldığı kadar RAM tutar.
-  Yanında `systemd.oomd` açık (wiki'nin zram ile birlikte önerdiği kombinasyon).
-  Hazırda bekletme bu düzende mümkün değil.
+  Yanında `systemd.oomd` açık (wiki'nin zram ile birlikte önerdiği kombinasyon);
+  `enableRootSlice` + `enableUserSlices` de açık, çünkü `enable` tek başına
+  daemon'u başlatıp hiçbir cgroup'u yönetime almıyor — RAM dolduğunda oomd'nin
+  hiç müdahale etmediği bizzat yaşandı. Hazırda bekletme bu düzende mümkün değil.
 - **`i915.enable_guc` yok** — Bu donanımda kernel zaten `adlp_guc` + `tgl_huc`
   yükleyip GuC submission'ı açıyor (dmesg ile doğrulandı), parametre gereksiz.
 - **`i915.force_probe` yok** — `8086:46a3` çekirdek tarafından parametresiz tanınıyor.

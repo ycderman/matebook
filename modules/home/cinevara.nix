@@ -1,7 +1,12 @@
-# Cinevara medya merkezi — kaynağı ~/Projects/Cinevara (bkz. flake.nix
-# inputs.cinevara). .desktop girdisini paket kendisi taşıyor, KDE menüsüne
-# otomatik düşer.
+# Cinevara medya merkezi — kaynağı github:ycderman/Cinevara (bkz. flake.nix
+# inputs.cinevara; depo özel, fetch için gh token gerekiyor). .desktop girdisini
+# paket kendisi taşıyor, KDE menüsüne otomatik düşer.
+#
+# Yerel geliştirme: commit'lenmemiş değişiklikleri denemek için
+#   rebuild-test --override-input cinevara path:$HOME/Projects/Cinevara
 { pkgs, inputs, ... }:
 {
-  home.packages = [ inputs.cinevara.packages.${pkgs.system}.default ];
+  # pkgs.system kullanılmıyor: nixpkgs onu stdenv.hostPlatform.system lehine
+  # kullanımdan kaldırdı (eval uyarısı veriyor).
+  home.packages = [ inputs.cinevara.packages.${pkgs.stdenv.hostPlatform.system}.default ];
 }

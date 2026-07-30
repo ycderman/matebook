@@ -31,4 +31,4 @@ sed -i -E "s/version = \"[^\"]+\";/version = \"${new_version}\";/" "$pkgfile"
 sed -i -E "s#hash = \"[^\"]+\";#hash = \"${hash}\";#" "$pkgfile"
 
 echo "güncellendi: version = \"${new_version}\"; hash = \"${hash}\";" >&2
-echo "sırada: cd /etc/nixos && git add pkgs/claude-desktop/default.nix && rebuild" >&2
+echo "sırada: cd ~/nixos-config && git add pkgs/claude-desktop/default.nix && rebuild" >&2

@@ -38,7 +38,9 @@
   ];
 
   # sudoedit, `systemctl edit`, git vb. için sistem düzenleyicisi nano.
+  # EDITOR/VISUAL'ın tek tanım yeri burası — home tarafında tekrarlanmıyor.
   environment.variables.EDITOR = "nano";
+  environment.variables.VISUAL = "nano";
   # WD PC SN740 için SSD bakımı.
   services.fstrim.enable = true;
   # NVMe'nin SMART izlemesi. Sonuçlar `smartctl -a /dev/nvme0n1` ile okunur,

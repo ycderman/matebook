@@ -65,7 +65,17 @@
 
   # "When using zram for swap, it is highly recommended to enable a userspace
   #  OOM killer such as systemd-oomd."
-  systemd.oomd.enable = true;
+  #
+  # enable tek başına yalnızca daemon'u başlatıyor; hangi cgroup'ları
+  # yöneteceği söylenmezse RAM/takas dolduğunda hiçbir şeye müdahale etmiyor
+  # (yaşandı: bellek dolduğunda oomd hiç devreye girmedi). Bu iki seçenek
+  # takas baskısı izlemeyi kök slice'a, bellek baskısı izlemeyi kullanıcı
+  # slice'larına bağlıyor. Kurulumdan sonra `oomctl` ile doğrula.
+  systemd.oomd = {
+    enable = true;
+    enableRootSlice = true;
+    enableUserSlices = true;
+  };
 
   # Hazırda bekletme (hibernate) bu düzende mümkün değil: RAM'i sığdıracak bir
   # takas aygıtı yok ve zram'e hibernate yapılamaz.

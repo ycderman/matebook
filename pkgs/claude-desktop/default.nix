@@ -8,38 +8,47 @@
 #
 # Sürüm/hash güncellemesi: ./update.sh <yeni-sürüm> — `nix store prefetch-file`
 # ile doğru hash'i otomatik hesaplayıp bu dosyayı yerinde düzenler.
-{ lib
-, stdenv
-, fetchurl
-, dpkg
-, autoPatchelfHook
-, wrapGAppsHook3
-, makeWrapper
-, alsa-lib
-, at-spi2-core
-, cairo
-, cups
-, dbus
-, expat
-, glib
-, gtk3
-, libdrm
-, libnotify
-, libcap_ng
-, libseccomp
-, libsecret
-, libxkbcommon
-, mesa
-, nspr
-, nss
-, pango
-, socat
-, systemd
-, util-linux
-, xdg-utils
-, xorg
-, qemu
-, virtiofsd
+{
+  lib,
+  stdenv,
+  fetchurl,
+  dpkg,
+  autoPatchelfHook,
+  wrapGAppsHook3,
+  makeWrapper,
+  alsa-lib,
+  at-spi2-core,
+  cairo,
+  cups,
+  dbus,
+  expat,
+  glib,
+  gtk3,
+  libdrm,
+  libnotify,
+  libcap_ng,
+  libseccomp,
+  libsecret,
+  libxkbcommon,
+  mesa,
+  nspr,
+  nss,
+  pango,
+  socat,
+  systemd,
+  util-linux,
+  xdg-utils,
+  # xorg.* paket seti kullanımdan kaldırıldı; X kütüphaneleri artık üst düzeyde.
+  libx11,
+  libxcb,
+  libxcomposite,
+  libxdamage,
+  libxext,
+  libxfixes,
+  libxrandr,
+  libxtst,
+  qemu,
+  virtiofsd,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -83,14 +92,14 @@ stdenv.mkDerivation (finalAttrs: {
     stdenv.cc.cc.lib
     systemd
     util-linux
-    xorg.libX11
-    xorg.libxcb
-    xorg.libXcomposite
-    xorg.libXdamage
-    xorg.libXext
-    xorg.libXfixes
-    xorg.libXrandr
-    xorg.libXtst
+    libx11
+    libxcb
+    libxcomposite
+    libxdamage
+    libxext
+    libxfixes
+    libxrandr
+    libxtst
   ];
 
   unpackPhase = ''
@@ -144,7 +153,14 @@ stdenv.mkDerivation (finalAttrs: {
 
   preFixup = ''
     gappsWrapperArgs+=(
-      --prefix PATH : ${lib.makeBinPath [ xdg-utils socat qemu virtiofsd ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          xdg-utils
+          socat
+          qemu
+          virtiofsd
+        ]
+      }
     )
   '';
 

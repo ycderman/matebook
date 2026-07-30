@@ -20,7 +20,12 @@
       "x-systemd.idle-timeout=600" # 10 dk kullanılmazsa çöz
       "noauto"
       "_netdev"
-      "soft" # sunucu kapalıysa asılı kalma, hata ver
+      # soft: BİLİNÇLİ TERCİH. hard olsaydı sunucu kapalıyken /mnt/storage'a
+      # dokunan her süreç (Dolphin dahil) süresiz askıda kalırdı; soft ile
+      # kısa bir bekleme sonrası hata dönüyor, masaüstü donmuyor. Bedeli:
+      # yazma sırasında sunucu çökerse veri sessizce kaybolabilir — bu bağlama
+      # üzerinden önemli yazma işi yaparken sunucunun ayakta olduğundan emin ol.
+      "soft"
       "timeo=50"
     ];
   };

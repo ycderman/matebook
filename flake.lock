@@ -2,17 +2,22 @@
   "nodes": {
     "cinevara": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": [
+          "nixpkgs"
+        ]
       },
       "locked": {
-        "lastModified": 1785184626,
-        "narHash": "sha256-essmUemo+kiAjUrNPgG1Uc5xwlZaYQ9R06jziQF2wqM=",
-        "path": "/home/can/Projects/Cinevara",
-        "type": "path"
+        "lastModified": 1785281411,
+        "narHash": "sha256-dwTpPUi2moULNWCPXRFH9kv67JEI0NWERM640Zt4ado=",
+        "owner": "ycderman",
+        "repo": "Cinevara",
+        "rev": "70c26b766296d580f3c9585dbd15e5abf30313f7",
+        "type": "github"
       },
       "original": {
-        "path": "/home/can/Projects/Cinevara",
-        "type": "path"
+        "owner": "ycderman",
+        "repo": "Cinevara",
+        "type": "github"
       }
     },
     "home-manager": {
@@ -36,22 +41,6 @@
       }
     },
     "nixpkgs": {
-      "locked": {
-        "lastModified": 1785090369,
-        "narHash": "sha256-m0pDuRJG7EDo9ri+4Ksu83VsI+PlxNC9lNBfydejce4=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "624af665418d3c65d544145b4d34ad696439570e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
-    "nixpkgs_2": {
       "locked": {
         "lastModified": 1785090369,
         "narHash": "sha256-m0pDuRJG7EDo9ri+4Ksu83VsI+PlxNC9lNBfydejce4=",
@@ -94,7 +83,7 @@
       "inputs": {
         "cinevara": "cinevara",
         "home-manager": "home-manager",
-        "nixpkgs": "nixpkgs_2",
+        "nixpkgs": "nixpkgs",
         "plasma-manager": "plasma-manager"
       }
     }
