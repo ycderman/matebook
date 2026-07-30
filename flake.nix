@@ -21,11 +21,7 @@
       inputs.home-manager.follows = "home-manager";
     };
 
-    # Cinevara: GitHub'daki depodan. Depo ÖZEL olduğu için nix'in fetch
-    # edebilmesi adına GitHub kimliği gerekir — rebuild/update alias'ları bunu
-    # `gh auth token` çıktısını --option access-tokens ile geçerek çözüyor
-    # (bkz. modules/home/shell.nix). Kurulum sırasındaki karşılığı README'nin
-    # 8. adımında (NIX_CONFIG içinde access-tokens).
+    # Cinevara: GitHub'daki public depodan; kimlik/token gerekmez.
     #
     # Yerel geliştirme: commit'lenmemiş Cinevara değişikliklerini denemek için
     #   rebuild-test --override-input cinevara path:$HOME/Projects/Cinevara

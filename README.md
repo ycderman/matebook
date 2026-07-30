@@ -89,7 +89,7 @@ nixos-config/
     └── home/                    # kullanıcı seviyesi modüller
         ├── default.nix
         ├── packages.nix
-        ├── shell.nix            # bash + direnv, rebuild/update alias'ları (gh token'lı)
+        ├── shell.nix            # bash + direnv, rebuild/update alias'ları
         ├── nix-shell-fix.nix    # Türkçe "İ" hatasına karşı nix sarmalayıcıları
         ├── git.nix
         ├── cinevara.nix         # github:ycderman/Cinevara paketini kurar
@@ -100,19 +100,10 @@ nixos-config/
 Modül eklemek için: dosyayı `modules/nixos/` altına koy, `modules/nixos/default.nix`
 içindeki `imports` listesine bir satır ekle. Başka hiçbir yeri değiştirmen gerekmez.
 
-## Cinevara (özel depo) ve GitHub token'ı
+## Cinevara
 
-`inputs.cinevara = github:ycderman/Cinevara` **özel bir depo** — nix'in onu
-indirebilmesi için GitHub kimliği gerekiyor. Token hiçbir dosyaya yazılmıyor;
-iki yerde çözülüyor:
-
-- **Günlük kullanım:** `rebuild`/`update` alias'ları (`modules/home/shell.nix`)
-  `--option access-tokens "github.com=$(gh auth token)"` geçiyor. Tek önkoşul,
-  ilk açılıştan sonra bir kez `gh auth login` çalıştırmış olmak.
-- **Kurulum sırasında:** ISO'da `gh` yok; Adım 8'de `NIX_CONFIG` içine
-  token elle yazılıyor (başka bir makinede `gh auth token` çıktısını al ya da
-  github.com/settings/tokens adresinden salt-okunur bir token üret).
-
+`inputs.cinevara = github:ycderman/Cinevara` **public bir depo** — nix onu
+kimlik/token olmadan indirir; `flake.lock` belirli bir commit'i sabitler.
 Commit'lenmemiş yerel Cinevara değişikliklerini denemek için:
 
 ```bash
@@ -505,9 +496,10 @@ findmnt /mnt /mnt/boot
 
 ## Adım 7 — Yapılandırmayı klonla
 
-Bu depo da **özel** olduğu için ISO'daki klonlama kimlik ister. HTTPS ile
-kullanıcı adına `ycderman`, parola yerine Adım 8'de kullanacağın GitHub
-token'ını yaz (GitHub hesap parolası artık kabul edilmiyor):
+Bu depo **özel** olduğu için ISO'daki klonlama kimlik ister. HTTPS ile
+kullanıcı adına `ycderman`, parola yerine bir GitHub token'ı yaz — başka bir
+makinede `gh auth token` çıktısını al ya da github.com/settings/tokens
+adresinden salt-okunur bir token üret (GitHub hesap parolası kabul edilmiyor):
 
 ```bash
 nix-shell -p git
@@ -528,14 +520,11 @@ git add -A
 ## Adım 8 — Kurulumdan önce doğrula
 
 Bu adım diske hiçbir şey yazmaz; amacı hatalı bir seçeneği kurulum başlamadan
-yakalamak. Önce flake'leri aç ve Cinevara'nın özel deposu için GitHub token'ını
-ver (`<TOKEN>` yerine başka bir makinede `gh auth token` çıktısını ya da
-github.com/settings/tokens adresinden ürettiğin salt-okunur bir token'ı yaz —
-buradaki `export` yalnızca bu kabuk oturumunda yaşar, diske yazılmaz):
+yakalamak. Önce flake'leri aç (bütün flake input'ları — cinevara dahil — public,
+nix için token gerekmez):
 
 ```bash
-export NIX_CONFIG="experimental-features = nix-command flakes
-access-tokens = github.com=<TOKEN>"
+export NIX_CONFIG="experimental-features = nix-command flakes"
 ```
 
 **Asıl kontrol — sadece değerlendirme, hiçbir şey derlemez:**
@@ -630,12 +619,8 @@ git -C ~/nixos-config remote set-url origin git@github.com:ycderman/matebook.git
 
 Aynı anahtarı homeserver'ın `authorized_keys` dosyasına eklemeyi de unutma.
 
-Son olarak `gh` ile GitHub'a giriş yap — `rebuild`/`update` alias'ları Cinevara'nın
-özel deposunu çekebilmek için token'ı `gh auth token` üzerinden alıyor:
-
-```bash
-gh auth login        # SSH protokolünü seç, tarayıcıyla doğrula
-```
+İstersen `gh auth login` ile GitHub CLI'a da giriş yap (`gh pr`, `gh repo` gibi
+komutlar için; `rebuild`/`update` ve `git push` bunu gerektirmiyor).
 
 ## Adım 11 — Bir şeyler ters giderse
 
@@ -667,15 +652,13 @@ durduğu için hiçbir şey kaybolmaz.
 ## Günlük kullanım
 
 ```bash
-rebuild        # sudo nixos-rebuild switch --flake ~/nixos-config#matebook + gh token
+rebuild        # sudo nixos-rebuild switch --flake ~/nixos-config#matebook
 rebuild-test   # kalıcı olmayan deneme
 rebuild-boot   # bir sonraki açılışta geçerli
-update         # nix flake update --flake ~/nixos-config + gh token
+update         # nix flake update --flake ~/nixos-config
 ```
 
-Alias'lar `modules/home/shell.nix` içinde; dördü de Cinevara'nın özel deposu
-için `--option access-tokens "github.com=$(gh auth token)"` geçiyor (önkoşul:
-bir kez `gh auth login`). Değişiklikten sonra
+Alias'lar `modules/home/shell.nix` içinde. Değişiklikten sonra
 `nixos-rebuild dry-build --flake .#matebook` ile derlemeyi denemek iyi bir alışkanlık.
 
 ## Kurulum sonrası doğrulama

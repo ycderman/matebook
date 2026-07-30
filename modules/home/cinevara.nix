@@ -1,5 +1,5 @@
 # Cinevara medya merkezi — kaynağı github:ycderman/Cinevara (bkz. flake.nix
-# inputs.cinevara; depo özel, fetch için gh token gerekiyor). .desktop girdisini
+# inputs.cinevara; depo public, kimlik gerekmez). .desktop girdisini
 # paket kendisi taşıyor, KDE menüsüne otomatik düşer.
 #
 # Yerel geliştirme: commit'lenmemiş değişiklikleri denemek için
