@@ -505,6 +505,10 @@ findmnt /mnt /mnt/boot
 
 ## Adım 7 — Yapılandırmayı klonla
 
+Bu depo da **özel** olduğu için ISO'daki klonlama kimlik ister. HTTPS ile
+kullanıcı adına `ycderman`, parola yerine Adım 8'de kullanacağın GitHub
+token'ını yaz (GitHub hesap parolası artık kabul edilmiyor):
+
 ```bash
 nix-shell -p git
 git clone https://github.com/ycderman/matebook.git /mnt/etc/nixos
