@@ -30,6 +30,9 @@
     rsync
   ];
 
+  # Kullanıcı tarafından kurulan komutlar (Claude Code, Codex vb.).
+  environment.localBinInPath = true;
+
   programs.nix-ld.enable = true;
   programs.nix-ld.libraries = with pkgs; [
     stdenv.cc.cc.lib
