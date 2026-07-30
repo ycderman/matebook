@@ -22,6 +22,17 @@ in
     # Türkçe dil paketi
     languagePacks = [ "tr" ];
 
+    # Nixpkgs Firefox sarmalayıcısı Wayland'i zaten MOZ_ENABLE_WAYLAND=1 ile
+    # varsayılan yapıyor. Firefox 153'te VA-API bu genel donanım çözme seçeneği
+    # üzerinden yönetiliyor; eski media.ffmpeg.vaapi.enabled tercihini eklemek
+    # gereksiz. "default" durumu, bir sürücü regresyonunda kullanıcının
+    # about:config üzerinden geçici olarak kapatabilmesini sağlar.
+    preferences = {
+      "media.hardware-video-decoding.enabled" = true;
+      "media.hardware-video-encoding.enabled" = true;
+    };
+    preferencesStatus = "default";
+
     # Plasma Integration eklentisinin masaüstüyle konuşabilmesi için gerekli.
     # (Wiki: yerel mesajlaşma, imperatif kurulan Firefox'ta çalışmaz.)
     nativeMessagingHosts.packages = [ pkgs.kdePackages.plasma-browser-integration ];

@@ -7,17 +7,20 @@
     enable32Bit = true; # Steam/Wine için 32-bit GL
 
     extraPackages = with pkgs; [
-      intel-media-driver # VA-API (iHD) — wiki bunu intel-vaapi-driver'a tercih ediyor
-      vpl-gpu-rt # oneVPL / QuickSync çalışma zamanı
-      intel-compute-runtime # OpenCL + Level Zero
+      intel-media-driver # VA-API iHD: video decode/encode
+      vpl-gpu-rt # oneVPL / Quick Sync çalışma zamanı (FFmpeg QSV)
+      intel-compute-runtime # OpenCL + Level Zero; video codec sürücüsü değildir
     ];
   };
 
-  # Gen12 için modern VA-API arka ucu iHD.
+  # Gen12 için modern VA-API arka ucu iHD. Çalışan sistemde H.264, HEVC, VP9
+  # ve MPEG-2 decode/encode ile AV1 decode bu sürücü üzerinden doğrulandı.
   environment.sessionVariables.LIBVA_DRIVER_NAME = "iHD";
 
   # i915.force_probe gerekmiyor: 8086:46a3 çekirdek tarafından hiçbir parametre
   # olmadan tanınıyor (bu makinede doğrulandı).
+  # i915.enable_guc da gerekmiyor: bütün i915 parametreleri otomatikteyken
+  # GuC submission/SLPC/RC ve HuC doğrulaması etkinleşiyor.
 
   # DDC/CI — harici monitörün (LG ULTRAGEAR, HDMI-A-1) parlaklık kontrolü.
   #

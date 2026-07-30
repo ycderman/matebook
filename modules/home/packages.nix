@@ -13,9 +13,12 @@
     tree
     ncdu
     bubblewrap
-    # Medya (iHD / VA-API üzerinden donanım hızlandırmalı)
+    # Medya (iHD / VA-API ve oneVPL / Quick Sync üzerinden hızlandırmalı)
     mpv
-    ffmpeg
+    # nixpkgs'te normal ffmpeg VA-API içerir; QSV/oneVPL ise yalnızca full
+    # varyantında derlenir. Çalışan Tumbleweed kurulumundaki vaapi + qsv
+    # yeteneklerini birlikte korumak için full kullanılıyor.
+    ffmpeg-full
     vlc
     # Claude Desktop — paket tanımı ../../pkgs/claude-desktop,
     # overlay modules/nixos/claude-desktop.nix'te.

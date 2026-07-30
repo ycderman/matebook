@@ -70,13 +70,13 @@ nixos-config/
     │   ├── locale.nix           # tr_TR.UTF-8, Europe/Istanbul, trq / xkb tr
     │   ├── network.nix          # NetworkManager, firewall, avahi, homeserver
     │   ├── audio.nix            # PipeWire + rtkit
-    │   ├── graphics.nix         # Intel Gen12: intel-media-driver, vpl-gpu-rt
+    │   ├── graphics.nix         # Intel Gen12: VA-API, QSV/oneVPL, Vulkan/OpenCL
     │   ├── firmware.nix         # redistributable firmware + fwupd
-    │   ├── bluetooth.nix        # AX201 BT
+    │   ├── bluetooth.nix        # AX201 BT, BlueZ ve codec davranışı
     │   ├── power.nix            # ppd, thermald, logind (uyku yok), zram, oomd
     │   ├── huawei.nix           # huawei-wmi: pil şarj eşikleri, fn-lock
     │   ├── desktop.nix          # Plasma 6 + plasma-login-manager
-    │   ├── firefox.nix          # politikalar, tr dil paketi, eklentiler
+    │   ├── firefox.nix          # politikalar, Wayland video, dil paketi, eklentiler
     │   ├── fonts.nix
     │   ├── packages.nix         # sistem araçları, nano, fstrim, smartd
     │   ├── storage.nix          # homeserver NFS/SSHFS (yorumlu örnek)
@@ -185,10 +185,46 @@ Elle uyku (Plasma menüsünden) hâlâ mümkün — kapatılan yalnızca otomati
 Pil kritik seviyeye düştüğündeki koruma (`batteryLevels.criticalAction`)
 bilerek varsayılanda bırakıldı ki veri kaybı olmasın.
 
+## Görüntü ve video hızlandırma
+
+Çalışan Tumbleweed sistemi üzerinde GPU `8086:46a3` için `i915`, Mesa
+OpenGL/Vulkan ve VA-API `iHD` yolu doğrulandı. Donanım H.264, HEVC, VP9 ve
+MPEG-2 çözme/kodlama ile AV1 çözmeyi destekliyor. `graphics.nix` bunun NixOS
+karşılıklarını kuruyor:
+
+- `intel-media-driver`: modern Intel VA-API (`iHD`) sürücüsü
+- `vpl-gpu-rt`: oneVPL/Quick Sync çalışma zamanı
+- `intel-compute-runtime`: OpenCL ve Level Zero; video codec sürücüsü değil
+- Mesa: OpenGL, EGL ve Intel ANV Vulkan; `hardware.graphics.enable` ile gelir
+
+Kullanıcı paketindeki `ffmpeg-full`, normal `ffmpeg` yerine bilerek seçildi.
+Nixpkgs'in normal varyantında VA-API bulunur fakat QSV/oneVPL yalnızca full
+varyantında derlenir. `mpv` ayrıca `hwdec=auto-safe` ile VA-API'yi otomatik
+seçer.
+
+`i915.enable_guc`, `i915.force_probe`, `MESA_LOADER_DRIVER_OVERRIDE` ve
+`VDPAU_DRIVER` gibi zorlamalar yoktur. Bu cihazda i915 otomatik ayarlardayken
+GuC submission/SLPC/RC ve HuC zaten etkin; Intel Gen12 için doğru VA-API
+sürücüsü doğrudan `LIBVA_DRIVER_NAME=iHD` ile seçilir.
+
+Plasma 6 yalnızca Wayland oturumu ile kuruluyor; KWin Mesa EGL/OpenGL
+compositor'ünü, ekran paylaşımı da Plasma'nın PipeWire tabanlı
+`xdg-desktop-portal-kde` arka ucunu kullanır.
+
 ## Firefox
 
 `modules/nixos/firefox.nix`: `languagePacks = [ "tr" ]`, telemetri/Pocket/studies
-kapalı, izleme koruması açık. Bildirimsel kurulan eklentiler:
+kapalı, izleme koruması açık. Nixpkgs Firefox sarmalayıcısı Wayland'i varsayılan
+yapar; donanım video çözme ve kodlama tercihleri `default` durumuyla açık
+tutulur. Böylece normalde VA-API kullanılır, fakat bir sürücü regresyonunda
+`about:config` üzerinden geçici olarak kapatılabilir.
+
+Eski `media.ffmpeg.vaapi.enabled`, `gfx.webrender.all` ve
+`widget.dmabuf.force-enabled` zorlamaları eklenmedi: Firefox 153'te genel
+donanım video tercihi zaten açık, WebRender/DMABUF ise destek durumuna göre
+kendisi seçiliyor.
+
+Bildirimsel kurulan eklentiler:
 
 | Eklenti | Kimlik |
 |---|---|
@@ -212,9 +248,25 @@ Dosya yoksa o girdi hiç üretilmiyor (`lib.optionalAttrs` + `builtins.pathExist
 yani derleme kırılmaz — dosyayı ekleyip `rebuild` dediğinde eklenti kendiliğinden
 gelir. Flake yalnızca git'in izlediği dosyaları gördüğü için `git add` şart.
 
+## Bluetooth
+
+Intel AX201'in Bluetooth bölümü USB `8087:0026` olarak `btusb`/`btintel` ile
+çalışır; gerekli `ibt-0040-4150.sfi` ve `.ddc` dosyaları
+`hardware.enableRedistributableFirmware` ile gelen firmware setindedir.
+`hardware.bluetooth.enable` BlueZ'i ve udev/D-Bus birimlerini kurar;
+`powerOnBoot = true` ayrıca BlueZ `Policy.AutoEnable` ayarını üretir.
+
+BlueZ deneysel D-Bus arayüzü pil seviyesi bildirimi için açık. PipeWire paketi
+SBC/SBC-XQ, AAC, aptX ailesi, LDAC, LC3, mSBC, FastStream ve Opus Bluetooth
+eklentileriyle derlenir. WirePlumber bütün kullanılabilir codec'leri ve aygıt
+quirks veritabanını varsayılan olarak kullanır; bu nedenle belirli
+kulaklıklarda sorun çıkarabilecek global codec ya da kalite zorlaması yoktur.
+Plasma arayüzünü varsayılan `bluedevil` sağlar; ikinci bir yönetici olarak
+`blueman` kurulmaz.
+
 ## Doğrulama durumu
 
-Bu yapılandırma gerçek `nix` ile değerlendirildi — tahmin değil, ölçüm:
+`ed5f88b` temel yapılandırması gerçek `nix` ile değerlendirilmişti:
 
 ```
 $ nix eval github:ycderman/matebook#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
@@ -230,6 +282,15 @@ these 1714 paths will be fetched (4.9 GiB download, 13.0 GiB unpacked)
 - Ağır hiçbir paket kaynaktan derlenmiyor; her şey resmi ikili önbellekten geliyor.
 - `flake.lock` depoya işlendi, yani kurulumda tam olarak bu sürümler kullanılacak
   (nixpkgs `624af66`, home-manager `cbb7767`, plasma-manager `c551f06`).
+
+Son görüntü/codec değişiklikleri Nix kurulu olmayan Tumbleweed çalışma
+ortamında yapıldı. Değiştirilen Nix dosyaları resmî `nixfmt 1.4.0 --check`
+kontrolünden geçti; tam modül değerlendirmesi NixOS kurulumundan önce şu
+komutla yeniden yapılmalı:
+
+```bash
+nix eval .#nixosConfigurations.matebook.config.system.build.toplevel.drvPath
+```
 
 Bu doğrulama sırasında bulunup düzeltilen gerçek hatalar:
 
@@ -573,6 +634,11 @@ bootctl status                      # systemd-boot yüklü mü, ESP /boot mu
 findmnt /boot /                      # label ile bağlanmış mı
 systemctl status plasma-login-manager
 vainfo                               # iHD sürücüsü (VA-API)
+ffmpeg -hide_banner -hwaccels        # vaapi, qsv, drm ve vulkan görünmeli
+echo "$XDG_SESSION_TYPE"             # wayland
+systemctl status bluetooth
+bluetoothctl show                    # Powered: yes
+wpctl status                         # PipeWire/WirePlumber aygıtları
 zramctl                              # zram takas — 8 GiB görünmeli
 cat /sys/devices/platform/huawei-wmi/charge_control_thresholds   # 70 80
 systemctl status power-profiles-daemon thermald
