@@ -6,7 +6,6 @@
     ./audio.nix
     ./bluetooth.nix
     ./boot.nix
-    ./claude-desktop.nix
     ./desktop.nix
     ./firefox.nix
     ./firmware.nix
