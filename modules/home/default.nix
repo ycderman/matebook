@@ -6,6 +6,7 @@
     ./shell.nix
     ./nix-shell-fix.nix
     ./git.nix
+    ./llm-wiki.nix
     ./plasma.nix
     ./cinevara.nix
     ./mpv.nix

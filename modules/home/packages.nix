@@ -21,6 +21,9 @@
     ffmpeg-full
     vlc
 
+    # Yerel Markdown bilgi tabanı; vault: /home/can/llm-wiki
+    obsidian
+
     # Firefox burada değil: politikalar ve eklentilerle birlikte
     # modules/nixos/firefox.nix içinde tanımlı.
     #

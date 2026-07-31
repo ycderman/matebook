@@ -27,7 +27,10 @@
 
     # Homeserver'a isimle erişmek için (iki tarafta /etc/hosts uğraşmadan).
     hosts = {
-      "192.168.1.3" = [ "homeserver" ];
+      "192.168.1.3" = [
+        "homeserver"
+        "candash"
+      ];
     };
   };
 
