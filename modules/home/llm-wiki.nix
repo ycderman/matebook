@@ -2,9 +2,31 @@
 let
   wikiRoot = "/home/can/llm-wiki";
   stateDir = "/home/can/.local/state/llm-wiki";
+  claudeSessionStart = pkgs.writeShellScript "claude-session-start" ''
+    set -euo pipefail
+
+    integration_file="${wikiRoot}/integration/second-brain.md"
+    if [[ ! -r "$integration_file" ]]; then
+      exit 0
+    fi
+
+    ${pkgs.jq}/bin/jq -n \
+      --arg context "Personal second brain: read $integration_file before tasks that benefit from durable personal, project, computer, server, research, or decision context." \
+      '{
+        hookSpecificOutput: {
+          hookEventName: "SessionStart",
+          additionalContext: $context
+        }
+      }'
+  '';
 in
 {
   home.sessionVariables.LLM_WIKI_ROOT = wikiRoot;
+
+  home.file.".local/libexec/llm-wiki/claude-session-start" = {
+    source = claudeSessionStart;
+    executable = true;
+  };
 
   systemd.user.services.llm-wiki-update = {
     Unit = {
