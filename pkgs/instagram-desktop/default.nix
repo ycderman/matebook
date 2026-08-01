@@ -69,7 +69,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       --add-flags "$out/share/instagram-desktop/instagram_desktop.py" \
       "''${gappsWrapperArgs[@]}" \
       --prefix PATH : ${lib.makeBinPath [ gallery-dl ffmpeg ]} \
-      --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "${lib.makeSearchPath "lib/gstreamer-1.0" gstPlugins}"
+      --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "${lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" gstPlugins}"
   '';
 
   desktopItems = [
