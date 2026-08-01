@@ -10,6 +10,8 @@
     eza
     bat
     jq
+    yq-go
+    shellcheck
     tree
     ncdu
     bubblewrap
