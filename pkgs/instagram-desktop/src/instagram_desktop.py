@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 import gi
@@ -21,6 +22,11 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
 
 APP_ID = "io.github.can.InstagramDesktop"
 HOME_URL = "https://www.instagram.com/"
+MESSAGE_HANDLER = "igdl"
+
+# gallery-dl, Chrome dışı bir User-Agent gördüğünde Instagram'ın düşük kaliteli
+# video varyantları döndürdüğü konusunda uyarıyor; istemci de indirici de aynı
+# masaüstü Chrome kimliğini kullanıyor.
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/137.0.0.0 Safari/537.36"
@@ -30,17 +36,111 @@ DATA_DIR = Path(GLib.get_user_data_dir()) / "instagram-desktop"
 CACHE_DIR = Path(GLib.get_user_cache_dir()) / "instagram-desktop"
 COOKIE_DB = DATA_DIR / "cookies.sqlite"
 COOKIE_EXPORT = DATA_DIR / "cookies-export.txt"
+LOG_FILE = DATA_DIR / "gallery-dl.log"
+LOG_LIMIT = 1 << 20
 
-# Downloadable Instagram routes; the feed itself has no gallery-dl extractor.
+# İndirilebilir Instagram yolları; akışın kendisinin extractor'ı yok.
 DOWNLOADABLE_PREFIXES = ("/p/", "/reel/", "/reels/", "/tv/", "/stories/", "/s/")
-NON_PROFILE_PATHS = {
-    "",
-    "/",
-    "/explore/",
-    "/direct/",
-    "/accounts/",
-    "/reels/audio/",
-}
+NON_PROFILE_PATHS = {"", "/", "/explore/", "/direct/", "/accounts/", "/reels/audio/"}
+
+# Her gönderinin kendi "..." menüsüne bir indirme satırı ekler. Satır, menüdeki
+# ilk satırın kopyası olduğu için Instagram'ın kendi stilini alır.
+USER_SCRIPT = """
+(function () {
+  if (window.__igdl) { return; }
+  window.__igdl = true;
+
+  var LABEL = "İndir";
+  var LINKS = 'a[href*="/p/"], a[href*="/reel/"], a[href*="/tv/"]';
+  var context = null;
+
+  function permalink(root) {
+    var link = root.querySelector ? root.querySelector(LINKS) : null;
+    return link ? link.href : null;
+  }
+
+  function targetUrl() {
+    var node = context;
+    while (node && node !== document.body) {
+      if (node.tagName === "ARTICLE") {
+        var inArticle = permalink(node);
+        if (inArticle) { return inArticle; }
+      }
+      node = node.parentElement;
+    }
+    // Reels ve hikâye görünümünde <article> yok: tıklanan öğenin yakın
+    // atalarına bak, orada da bulunamazsa adres çubuğundaki içeriğe düş.
+    node = context;
+    for (var depth = 0; node && node !== document.body && depth < 8; depth++) {
+      var nearby = permalink(node);
+      if (nearby) { return nearby; }
+      node = node.parentElement;
+    }
+    return location.href;
+  }
+
+  function isMenu(dialog) {
+    if (dialog.querySelector("article, video, img, canvas")) { return false; }
+    if (dialog.textContent.length > 400) { return false; }
+    return dialog.querySelectorAll('[role="button"], button').length >= 2;
+  }
+
+  function inject(dialog, url) {
+    if (!dialog || dialog.querySelector("[data-igdl]")) { return; }
+    if (!isMenu(dialog)) { return; }
+
+    var items = Array.prototype.filter.call(
+      dialog.querySelectorAll('[role="button"], button'),
+      function (item) { return item.textContent.trim().length > 0; }
+    );
+    var first = items[0];
+    if (!first || !first.parentElement) { return; }
+
+    var entry = first.cloneNode(true);
+    entry.setAttribute("data-igdl", "1");
+    entry.textContent = LABEL;
+    entry.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      window.webkit.messageHandlers.igdl.postMessage(url);
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    }, true);
+    first.parentElement.insertBefore(entry, first);
+  }
+
+  document.addEventListener("click", function (event) {
+    context = event.target;
+  }, true);
+
+  function schedule(dialog) {
+    // Menü içeriğini React, diyalog eklendikten sonra dolduruyor.
+    var url = targetUrl();
+    [0, 120, 300, 600].forEach(function (delay) {
+      setTimeout(function () {
+        if (document.contains(dialog)) { inject(dialog, url); }
+      }, delay);
+    });
+  }
+
+  new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      Array.prototype.forEach.call(mutation.addedNodes, function (node) {
+        if (node.nodeType !== 1) { return; }
+        if (node.matches && node.matches('div[role="dialog"]')) {
+          schedule(node);
+        }
+        if (node.querySelectorAll) {
+          Array.prototype.forEach.call(
+            node.querySelectorAll('div[role="dialog"]'), schedule
+          );
+        }
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+"""
 
 
 def download_dir() -> Path:
@@ -63,7 +163,7 @@ def is_downloadable(uri: str) -> bool:
         return True
     if path in NON_PROFILE_PATHS or path.startswith(("/explore", "/direct", "/accounts")):
         return False
-    # /<username>/ and its tabs (/reels/, /tagged/) are profile extractors.
+    # /<username>/ ve sekmeleri (/reels/, /tagged/) profil extractor'ına gider.
     return len(path.strip("/").split("/")) <= 2
 
 
@@ -117,12 +217,32 @@ class InstagramWindow(Adw.ApplicationWindow):
             str(COOKIE_DB), WebKit.CookiePersistentStorage.SQLITE
         )
 
-        self.webview = WebKit.WebView(network_session=self.session, vexpand=True)
+        content = WebKit.UserContentManager()
+        content.register_script_message_handler(MESSAGE_HANDLER, None)
+        content.connect(
+            f"script-message-received::{MESSAGE_HANDLER}", self.on_script_message
+        )
+        content.add_script(
+            WebKit.UserScript.new(
+                USER_SCRIPT,
+                WebKit.UserContentInjectedFrames.TOP_FRAME,
+                WebKit.UserScriptInjectionTime.END,
+                None,
+                None,
+            )
+        )
+
+        self.webview = WebKit.WebView(
+            network_session=self.session,
+            user_content_manager=content,
+            vexpand=True,
+        )
         settings = self.webview.get_settings()
         settings.set_user_agent(USER_AGENT)
         settings.set_enable_developer_extras(True)
         settings.set_enable_smooth_scrolling(True)
         settings.set_media_playback_requires_user_gesture(False)
+
         self.build_ui()
         self.install_actions()
 
@@ -163,26 +283,14 @@ class InstagramWindow(Adw.ApplicationWindow):
         home_button.connect("clicked", lambda *_: self.webview.load_uri(HOME_URL))
         header.pack_start(home_button)
 
-        self.download_button = Gtk.Button(
-            child=Adw.ButtonContent(
-                icon_name="folder-download-symbolic", label="İndir"
-            ),
-            tooltip_text="Açık gönderiyi veya profili indir (Ctrl+D)",
-            css_classes=["suggested-action"],
-            action_name="win.download-current",
-        )
-        header.pack_end(self.download_button)
-
         menu = Gio.Menu()
         menu.append("Bağlantıdan indir…", "win.download-link")
+        menu.append("Açık içeriği indir", "win.download-current")
         menu.append("İndirme klasörünü aç", "win.open-folder")
-        menu.append("Günlüğü göster/gizle", "win.toggle-log")
         menu.append("Oturumu kapat ve verileri sil", "win.clear-session")
         header.pack_end(
             Gtk.MenuButton(
-                icon_name="open-menu-symbolic",
-                menu_model=menu,
-                tooltip_text="Menü",
+                icon_name="open-menu-symbolic", menu_model=menu, tooltip_text="Menü"
             )
         )
 
@@ -190,30 +298,7 @@ class InstagramWindow(Adw.ApplicationWindow):
             visible=False, css_classes=["osd"], valign=Gtk.Align.START
         )
 
-        self.log_buffer = Gtk.TextBuffer()
-        log_view = Gtk.TextView(
-            buffer=self.log_buffer,
-            editable=False,
-            monospace=True,
-            cursor_visible=False,
-            left_margin=8,
-            right_margin=8,
-            top_margin=6,
-            bottom_margin=6,
-        )
-        self.log_scroller = Gtk.ScrolledWindow(
-            child=log_view, min_content_height=170, propagate_natural_height=False
-        )
-        self.log_revealer = Gtk.Revealer(
-            child=self.log_scroller, reveal_child=False, transition_duration=150
-        )
-
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        content.append(self.webview)
-        content.append(Gtk.Separator())
-        content.append(self.log_revealer)
-
-        overlay = Gtk.Overlay(child=content)
+        overlay = Gtk.Overlay(child=self.webview)
         overlay.add_overlay(self.progress)
 
         toolbar = Adw.ToolbarView(content=overlay)
@@ -227,9 +312,6 @@ class InstagramWindow(Adw.ApplicationWindow):
             "download-current": lambda *_: self.start_download(self.webview.get_uri()),
             "download-link": lambda *_: self.ask_for_link(),
             "open-folder": lambda *_: self.open_download_dir(),
-            "toggle-log": lambda *_: self.log_revealer.set_reveal_child(
-                not self.log_revealer.get_reveal_child()
-            ),
             "clear-session": lambda *_: self.confirm_clear_session(),
         }
         group = Gio.SimpleActionGroup()
@@ -242,7 +324,6 @@ class InstagramWindow(Adw.ApplicationWindow):
         app = self.get_application()
         app.set_accels_for_action("win.download-current", ["<Control>d"])
         app.set_accels_for_action("win.download-link", ["<Control>l"])
-        app.set_accels_for_action("win.toggle-log", ["<Control>j"])
 
     # ----------------------------------------------------------- webview
 
@@ -251,7 +332,6 @@ class InstagramWindow(Adw.ApplicationWindow):
         self.window_title.set_subtitle(uri)
         self.back_button.set_sensitive(self.webview.can_go_back())
         self.forward_button.set_sensitive(self.webview.can_go_forward())
-        self.download_button.set_sensitive(is_downloadable(uri))
 
     def on_progress(self, *_args) -> None:
         value = self.webview.get_estimated_load_progress()
@@ -266,11 +346,14 @@ class InstagramWindow(Adw.ApplicationWindow):
             Gtk.UriLauncher(uri=uri).launch(self, None, None)
         return None
 
+    def on_script_message(self, _manager, value) -> None:
+        self.start_download(value.to_string())
+
     # ---------------------------------------------------------- download
 
     def start_download(self, uri: str | None) -> None:
         if not uri or not is_downloadable(uri):
-            self.notify_user("Bu sayfa indirilemez. Bir gönderi, reel veya profil aç.")
+            self.notify_user("Bu içerik indirilemez.")
             return
         if shutil.which("gallery-dl") is None:
             self.notify_user("gallery-dl bulunamadı.")
@@ -301,50 +384,38 @@ class InstagramWindow(Adw.ApplicationWindow):
             USER_AGENT,
             "--destination",
             str(target),
-            "--write-metadata",
+            # Video, DASH manifestinden alınır: yt-dlp en yüksek çözünürlüklü
+            # temsili seçer, ffmpeg sesle birleştirir. Görsellerde gallery-dl
+            # zaten en büyük candidate'ı indiriyor.
+            "--option",
+            "extractor.instagram.videos=true",
             uri,
         ]
         self.active_jobs += 1
-        self.log_revealer.set_reveal_child(True)
-        self.append_log(f"$ {' '.join(command[:1])} … {uri}")
-        self.notify_user("İndirme başladı.")
+        self.notify_user("İndiriliyor…")
         threading.Thread(
-            target=self.run_gallery_dl, args=(command, jar), daemon=True
+            target=self.run_gallery_dl, args=(command, jar, uri), daemon=True
         ).start()
 
-    def run_gallery_dl(self, command: list[str], jar: Path) -> None:
+    def run_gallery_dl(self, command: list[str], jar: Path, uri: str) -> None:
+        code = -1
         try:
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-            for line in process.stdout:
-                GLib.idle_add(self.append_log, line.rstrip())
-            code = process.wait()
+            if LOG_FILE.exists() and LOG_FILE.stat().st_size > LOG_LIMIT:
+                LOG_FILE.unlink()
+            with LOG_FILE.open("a") as log:
+                log.write(f"\n=== {time.strftime('%F %T')} {uri}\n")
+                log.flush()
+                code = subprocess.call(command, stdout=log, stderr=subprocess.STDOUT)
         except OSError as error:
-            GLib.idle_add(self.append_log, f"hata: {error}")
-            code = -1
+            with LOG_FILE.open("a") as log:
+                log.write(f"error: {error}\n")
         finally:
             jar.unlink(missing_ok=True)
         GLib.idle_add(self.finish_download, code)
 
     def finish_download(self, code: int) -> None:
         self.active_jobs = max(0, self.active_jobs - 1)
-        if code == 0:
-            self.notify_user(f"İndirme tamamlandı → {download_dir()}")
-        else:
-            self.notify_user(f"gallery-dl {code} koduyla çıktı. Günlüğe bak.")
-            self.log_revealer.set_reveal_child(True)
-
-    def append_log(self, text: str) -> None:
-        end = self.log_buffer.get_end_iter()
-        self.log_buffer.insert(end, text + "\n")
-        mark = self.log_buffer.create_mark(None, self.log_buffer.get_end_iter(), False)
-        self.log_scroller.get_child().scroll_mark_onscreen(mark)
-        self.log_buffer.delete_mark(mark)
+        self.notify_user("İndirildi." if code == 0 else "İndirme başarısız oldu.")
 
     # ------------------------------------------------------------ dialogs
 
@@ -420,7 +491,7 @@ class InstagramWindow(Adw.ApplicationWindow):
         Gtk.FileLauncher(file=Gio.File.new_for_path(str(target))).launch(self, None, None)
 
     def notify_user(self, message: str) -> None:
-        self.toasts.add_toast(Adw.Toast(title=message, timeout=4))
+        self.toasts.add_toast(Adw.Toast(title=message, timeout=3))
 
 
 class InstagramApp(Adw.Application):
