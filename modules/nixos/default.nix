@@ -13,6 +13,7 @@
     ./graphics.nix
     ./home-manager.nix
     ./huawei.nix
+    ./instagram-desktop.nix
     ./locale.nix
     ./network.nix
     ./nix.nix

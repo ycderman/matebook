@@ -18,6 +18,10 @@
 
     # AUR Linux uyumluluk yamalarıyla NixOS için paketlenen Codex masaüstü.
     openai-codex-desktop
+
+    # Kendi hesapla giriş yapılan Instagram istemcisi + gallery-dl indirici.
+    # Kaynak: pkgs/instagram-desktop
+    instagram-desktop
     # Medya (iHD / VA-API ve oneVPL / Quick Sync üzerinden hızlandırmalı)
     mpv
     # nixpkgs'te normal ffmpeg VA-API içerir; QSV/oneVPL ise yalnızca full
