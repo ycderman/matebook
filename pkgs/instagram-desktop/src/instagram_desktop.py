@@ -79,6 +79,22 @@ USER_SCRIPT = """
     return location.href;
   }
 
+  // Yalnızca metin düğümünü değiştir: satırın iç sarmalayıcıları (dolayısıyla
+  // hizası ve boşlukları) Instagram'ın kendi satırlarıyla aynı kalsın.
+  function setLabel(entry, label) {
+    var walker = document.createTreeWalker(entry, NodeFilter.SHOW_TEXT);
+    var nodes = [];
+    while (walker.nextNode()) {
+      if (walker.currentNode.nodeValue.trim()) { nodes.push(walker.currentNode); }
+    }
+    if (!nodes.length) {
+      entry.textContent = label;
+      return;
+    }
+    nodes[0].nodeValue = label;
+    nodes.slice(1).forEach(function (node) { node.nodeValue = ""; });
+  }
+
   function isMenu(dialog) {
     if (dialog.querySelector("article, video, img, canvas")) { return false; }
     if (dialog.textContent.length > 400) { return false; }
@@ -98,7 +114,7 @@ USER_SCRIPT = """
 
     var entry = first.cloneNode(true);
     entry.setAttribute("data-igdl", "1");
-    entry.textContent = LABEL;
+    setLabel(entry, LABEL);
     entry.addEventListener("click", function (event) {
       event.preventDefault();
       event.stopPropagation();
