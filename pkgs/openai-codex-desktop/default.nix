@@ -99,6 +99,18 @@ stdenv.mkDerivation (finalAttrs: {
       node "aur/$patcher" app-extracted
     done
 
+    # Uygulama tepsiyi yalnızca OpenAI'nin çatal Electron'undaki
+    # Tray.whenReady/Tray.isReady varsa hazır sayıyor. nixpkgs Electron'unda bu
+    # API yok, dolayısıyla Linux'ta tepsi kurulur kurulmaz yok ediliyor ve
+    # pencere kapanınca uygulama çıkmak zorunda kalıyor. API yokken tepsiyi
+    # hazır kabul et.
+    main_bundle="$(echo app-extracted/.vite/build/main-*.js)"
+    substituteInPlace "$main_bundle" \
+      --replace-fail 'if(typeof t.whenReady!=`function`)return process.platform!==`linux`;' \
+        'if(typeof t.whenReady!=`function`)return!0;' \
+      --replace-fail 'return typeof t.isReady==`function`?t.isReady():process.platform!==`linux`' \
+        'return typeof t.isReady==`function`?t.isReady():!0'
+
     rm -rf app-extracted/node_modules/better-sqlite3 app-extracted/node_modules/node-pty
     mkdir -p app-extracted/node_modules/better-sqlite3 app-extracted/node_modules/node-pty
     bsdtar -xf "$betterSqlite3" -C app-extracted/node_modules/better-sqlite3 --strip-components 1
@@ -164,7 +176,10 @@ stdenv.mkDerivation (finalAttrs: {
       --replace-fail 'appdir="/usr/lib/openai-codex-desktop"' "appdir=\"$appout\"" \
       --replace-fail /usr/bin/qdbus6 ${qt6.qttools}/bin/qdbus6
 
+    # Pencere kapatıldığında uygulama sistem tepsisinde çalışmaya devam etsin.
+    # Tepsi ikonu hazır olmazsa Electron yine de çıkar, arkada asılı kalmaz.
     makeWrapper "$appout/codex-desktop.sh" "$out/bin/codex-desktop" \
+      --set-default CODEX_DESKTOP_QUIT_ON_LAST_WINDOW 0 \
       --prefix PATH : ${
         lib.makeBinPath [
           codex
@@ -182,6 +197,14 @@ stdenv.mkDerivation (finalAttrs: {
     fi
     test -n "$icon_png"
     install -m644 "$icon_png" "$out/share/icons/hicolor/512x512/apps/openai-codex-desktop.png"
+
+    # Linux tepsi ikonu. macOS arşivi PNG ikon içermiyor ve Electron uygulamayı
+    # argüman olarak aldığı için `app.isPackaged` false kalıyor; bu yolda ikon
+    # `<repoRoot>/electron/src/icons/icon.png` olarak aranıyor ve repoRoot
+    # `resources` dizinine denk geliyor. Dosya yoksa tepsi kurulumu hata verir
+    # ve uygulama son pencere kapanınca çıkar.
+    install -Dm644 "$icon_png" "$appout/resources/electron/src/icons/icon.png"
+
     install -Dm644 aur/LICENSE "$out/share/licenses/openai-codex-desktop/LICENSE"
 
     runHook postInstall
