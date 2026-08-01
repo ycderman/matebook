@@ -2,37 +2,17 @@
 let
   wikiRoot = "/home/can/llm-wiki";
   stateDir = "/home/can/.local/state/llm-wiki";
-  claudeSessionStart = pkgs.writeShellScript "claude-session-start" ''
-    set -euo pipefail
-
-    integration_file="${wikiRoot}/integration/second-brain.md"
-    if [[ ! -r "$integration_file" ]]; then
-      exit 0
-    fi
-
-    ${pkgs.jq}/bin/jq -n \
-      --arg context "Personal second brain: read $integration_file before tasks that benefit from durable personal, project, computer, server, research, or decision context." \
-      '{
-        hookSpecificOutput: {
-          hookEventName: "SessionStart",
-          additionalContext: $context
-        }
-      }'
-  '';
 in
 {
   home.sessionVariables.LLM_WIKI_ROOT = wikiRoot;
-
-  home.file.".local/libexec/llm-wiki/claude-session-start" = {
-    source = claudeSessionStart;
-    executable = true;
-  };
 
   systemd.user.services.llm-wiki-update = {
     Unit = {
       Description = "Codex ve Claude Code ile LLM Wiki güncellemesi";
       Wants = [ "network-online.target" ];
       After = [ "network-online.target" ];
+      StartLimitIntervalSec = "6h";
+      StartLimitBurst = 3;
     };
 
     Service = {
@@ -46,6 +26,7 @@ in
         "LLM_WIKI_STATE_DIR=${stateDir}"
         "CODEX_HOME=${stateDir}/codex-home"
         "CLAUDE_CONFIG_DIR=${stateDir}/claude-home"
+        "LLM_WIKI_AUTOCOMMIT_MANUAL=0"
         "LC_ALL=C.UTF-8"
       ];
 
@@ -54,7 +35,11 @@ in
       MemoryHigh = "2G";
       MemoryMax = "3G";
       TimeoutStartSec = "2h";
+      Restart = "on-failure";
+      RestartSec = "30m";
       UMask = "0077";
+      StandardOutput = "null";
+      StandardError = "journal";
 
       NoNewPrivileges = true;
       PrivateTmp = true;
@@ -70,10 +55,10 @@ in
   };
 
   systemd.user.timers.llm-wiki-update = {
-    Unit.Description = "LLM Wiki'yi 24 saatte bir güncelle";
+    Unit.Description = "LLM Wiki'yi her gün güncelle";
     Timer = {
-      OnBootSec = "15m";
-      OnUnitActiveSec = "24h";
+      OnCalendar = "daily";
+      RandomizedDelaySec = "15m";
       AccuracySec = "1m";
       Persistent = true;
       Unit = "llm-wiki-update.service";
