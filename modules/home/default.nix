@@ -1,5 +1,5 @@
 # `can` kullanıcısı için Home Manager yapılandırması.
-{ ... }:
+{ config, ... }:
 {
   imports = [
     ./packages.nix
@@ -25,5 +25,15 @@
   xdg.userDirs = {
     enable = true;
     createDirectories = true;
+
+    desktop = "${config.home.homeDirectory}/Masaüstü";
+    documents = "${config.home.homeDirectory}/Belgeler";
+    download = "${config.home.homeDirectory}/İndirilenler";
+    music = "${config.home.homeDirectory}/Müzik";
+    pictures = "${config.home.homeDirectory}/Resimler";
+    publicShare = "${config.home.homeDirectory}/Genel";
+    templates = "${config.home.homeDirectory}/Şablonlar";
+    videos = "${config.home.homeDirectory}/Videolar";
+    projects = "${config.home.homeDirectory}/Projeler";
   };
 }
