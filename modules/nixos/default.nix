@@ -16,6 +16,7 @@
     ./locale.nix
     ./network.nix
     ./nix.nix
+    ./openai-codex-desktop.nix
     ./packages.nix
     ./power.nix
     ./storage.nix

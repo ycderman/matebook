@@ -13,6 +13,9 @@
     tree
     ncdu
     bubblewrap
+
+    # AUR Linux uyumluluk yamalarıyla NixOS için paketlenen Codex masaüstü.
+    openai-codex-desktop
     # Medya (iHD / VA-API ve oneVPL / Quick Sync üzerinden hızlandırmalı)
     mpv
     # nixpkgs'te normal ffmpeg VA-API içerir; QSV/oneVPL ise yalnızca full
