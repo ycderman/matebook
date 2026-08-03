@@ -3,11 +3,22 @@
 # Bağlama erişim anında (automount) ve hatası ölümcül olmayan tutuluyor —
 # erişilemeyen bir NFS sunucusu masaüstünü kilitleyebilir, bir dizüstünde
 # istenen bu değil. Bu yüzden her başarısızlık hızlıca hataya düşmeli.
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 {
-  # NFS istemci desteği. (idmapd/rpc-statd zaten fileSystems girdileriyle
-  # geliyor; rpcbind burada açık ki `showmount -e homeserver` da çalışsın.)
-  services.rpcbind.enable = true;
+  # rpcbind kapalı. Portmapper'a yalnızca NFSv2/v3 ihtiyaç duyar; bu bağlama
+  # NFSv4.2'ye sabitlenmiştir (aşağıya bakın) ve sunucu da NFSv2/v3'ü kapatıp
+  # port 111'i kapalı tutar.
+  #
+  # mkForce gerekiyor: nixpkgs'in `tasks/filesystems/nfs.nix` modülü, NFS
+  # dosya sistemi tanımlandığı anda `services.rpcbind.enable = true` değerini
+  # koşulsuz atıyor.
+  #
+  # Burada daha önce `services.rpcbind.enable = true` vardı ve gerekçesi
+  # `showmount -e homeserver` komutunun çalışmasıydı. O komut sunucuda port
+  # 111 kapalı olduğu için zaten çalışmıyordu; ayar yalnızca dizüstünde
+  # gereksiz bir dinleyici açıyordu. Export listesi gerekirse sunucudan:
+  # `showmount -e localhost`.
+  services.rpcbind.enable = lib.mkForce false;
 
   # homeserver:/srv/storage — sunucunun tek export'u, 192.168.1.0/24'e açık.
   # Adres bilerek düz IP: `homeserver` adı avahi üzerinden link-local IPv6'ya
