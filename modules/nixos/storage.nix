@@ -1,7 +1,8 @@
 # Uzak depolama: 192.168.1.3 adresindeki IdeaPad 530S homeserver.
 #
-# Bağlama tembel ve hatası ölümcül olmayan tutuluyor — erişilemeyen bir NFS
-# sunucusu açılışı kilitleyebilir, bir dizüstünde istenen bu değil.
+# Bağlama erişim anında (automount) ve hatası ölümcül olmayan tutuluyor —
+# erişilemeyen bir NFS sunucusu masaüstünü kilitleyebilir, bir dizüstünde
+# istenen bu değil. Bu yüzden her başarısızlık hızlıca hataya düşmeli.
 { ... }:
 {
   # NFS istemci desteği. (idmapd/rpc-statd zaten fileSystems girdileriyle
@@ -16,10 +17,21 @@
     device = "192.168.1.3:/srv/storage";
     fsType = "nfs";
     options = [
-      "x-systemd.automount" # açılışta değil, ilk erişimde bağla
-      "x-systemd.idle-timeout=600" # 10 dk kullanılmazsa çöz
+      # Erişildiğinde bağla, 10 dk boşta kalınca çöz. Plasma'nın depolama
+      # sorguları sunucu kapalıyken de bağlamayı tetikliyor; aşağıdaki
+      # retry=0 + mount-timeout ikilisi bu denemeyi saniyeler içinde
+      # başarısız kılıyor, böylece Dolphin autofs_wait'te kilitlenmiyor.
+      "x-systemd.automount"
+      "x-systemd.idle-timeout=600"
+      # Bağlama denemesini 10 sn'de kes. Varsayılan 90 sn, ve o süre boyunca
+      # tekrar tekrar tetiklenen başarısız denemeler automount birimini
+      # düşürüp /mnt/storage'ı sessizce ölü bırakabiliyor.
+      "x-systemd.mount-timeout=10"
       "noauto"
       "_netdev"
+      # NFSv4'e sabitle: sürüm pazarlığı v3'e düşerse rpcbind (port 111)
+      # gerekiyor, sunucuda kapalı ve mount orada takılıyor.
+      "nfsvers=4.2"
       # soft: BİLİNÇLİ TERCİH. hard olsaydı sunucu kapalıyken /mnt/storage'a
       # dokunan her süreç (Dolphin dahil) süresiz askıda kalırdı; soft ile
       # kısa bir bekleme sonrası hata dönüyor, masaüstü donmuyor. Bedeli:
@@ -27,6 +39,7 @@
       # üzerinden önemli yazma işi yaparken sunucunun ayakta olduğundan emin ol.
       "soft"
       "timeo=50"
+      "retry=0" # ilk bağlantı başarısızsa dakikalarca yeniden deneme
     ];
   };
 
