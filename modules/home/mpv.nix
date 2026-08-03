@@ -9,4 +9,9 @@
   xdg.configFile."mpv/mpv.conf".text = ''
     hwdec=auto-safe
   '';
+
+  xdg.configFile."mpv/input.conf".text = ''
+    WHEEL_UP    nonscalable seek 5
+    WHEEL_DOWN  nonscalable seek -5
+  '';
 }
