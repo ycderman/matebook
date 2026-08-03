@@ -3,7 +3,7 @@
 # Bağlama erişim anında (automount) ve hatası ölümcül olmayan tutuluyor —
 # erişilemeyen bir NFS sunucusu masaüstünü kilitleyebilir, bir dizüstünde
 # istenen bu değil. Bu yüzden her başarısızlık hızlıca hataya düşmeli.
-{ ... }:
+{ config, pkgs, ... }:
 {
   # NFS istemci desteği. (idmapd/rpc-statd zaten fileSystems girdileriyle
   # geliyor; rpcbind burada açık ki `showmount -e homeserver` da çalışsın.)
@@ -41,6 +41,45 @@
       "timeo=50"
       "retry=0" # ilk bağlantı başarısızsa dakikalarca yeniden deneme
     ];
+  };
+
+  # Automount tetikleyicisini yalnızca sunucu cevap verirken kur.
+  #
+  # Sorun: autofs tetikleyicisi kurulu olduğu sürece /mnt/storage'a dokunan
+  # her süreç (Dolphin, Plasma'nın solid sorguları, xdg-desktop-portal)
+  # bağlama denemesi bitene kadar çekirdekte bloke oluyor. Sunucu kapalıyken
+  # bu, mount-timeout kadar tam donma demek — ölçüldü: 10.1 sn.
+  #
+  # Çözüm: sunucuya erişilemiyorsa automount birimini durdur. O anda
+  # /mnt/storage sıradan bir boş dizin olur, stat anında döner, Dolphin
+  # donmaz. Sunucu geri geldiğinde tetikleyici yeniden kurulur.
+  systemd.services.storage-automount-gate = {
+    description = "Arm /mnt/storage automount only while the homeserver answers";
+    after = [ "network.target" ];
+    path = [
+      pkgs.bash
+      pkgs.coreutils
+      config.systemd.package
+    ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      if timeout 2 bash -c 'exec 3<>/dev/tcp/192.168.1.3/2049' 2>/dev/null; then
+        systemctl start mnt-storage.automount
+      elif ! systemctl is-active --quiet mnt-storage.mount; then
+        # Zaten bağlıysa dokunma: soft bağlama erişim hatası döndürür,
+        # bu da askıda kalmaktan iyidir.
+        systemctl stop mnt-storage.automount
+      fi
+    '';
+  };
+
+  systemd.timers.storage-automount-gate = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "15s";
+      OnUnitActiveSec = "30s";
+      AccuracySec = "5s";
+    };
   };
 
   # SSHFS alternatifi (matebook-homeserver-sshfs anahtarını kullanır):
