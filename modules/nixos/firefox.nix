@@ -30,6 +30,28 @@ in
     preferences = {
       "media.hardware-video-decoding.enabled" = true;
       "media.hardware-video-encoding.enabled" = true;
+
+      # Bellek ayarı — makinede 8 GiB RAM var ve Firefox tek başına 2 GB PSS
+      # kullanabiliyor. Aşağıdaki değerler ölçülen varsayılanlardan düşürüldü;
+      # hepsi `preferencesStatus = "default"` olduğu için about:config'den
+      # geri alınabilir.
+
+      # bfcache: geri/ileri için bellekte tutulan tam sayfa kopyası sayısı.
+      # Varsayılan -1, yani RAM'e göre otomatik ve bu makinede 8'e çıkıyor.
+      "browser.sessionhistory.max_total_viewers" = 2;
+
+      # Bellek içi HTTP önbelleği, KB. Varsayılan -1 (otomatik).
+      "browser.cache.memory.capacity" = 65536;
+
+      # İçerik process sayısı. Varsayılan 8; her process kendi JS heap'ini ve
+      # temel yapılarını taşıdığı için sabit bir taban maliyeti var.
+      # Bedeli: çok sekme aynı process'i paylaşır, biri çökerse hepsi gider ve
+      # ağır bir sekme diğerlerini yavaşlatabilir.
+      "dom.ipc.processCount" = 4;
+
+      # Fission açıkken asıl belirleyici olan bu: aynı origin için açılan
+      # izole process sayısı. Varsayılan 4.
+      "dom.ipc.processCount.webIsolated" = 2;
     };
     preferencesStatus = "default";
 
