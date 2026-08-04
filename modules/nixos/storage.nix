@@ -93,7 +93,80 @@
     };
   };
 
-  # SSHFS alternatifi (matebook-homeserver-sshfs anahtarını kullanır):
-  #   sshfs can@192.168.1.3:/srv /mnt/homeserver -o reconnect,idmap=user
-  # sshfs ikilisi packages.nix içinde kurulu.
+  # /mnt/homeserver için aynı kapı: gerekçe yukarıdaki storage gate ile
+  # birebir aynı, yalnızca yoklanan port SSH (22).
+  systemd.services.homeserver-automount-gate = {
+    description = "Arm /mnt/homeserver automount only while the homeserver answers";
+    after = [ "network.target" ];
+    path = [
+      pkgs.bash
+      pkgs.coreutils
+      config.systemd.package
+    ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      if timeout 2 bash -c 'exec 3<>/dev/tcp/192.168.1.3/22' 2>/dev/null; then
+        systemctl start mnt-homeserver.automount
+      elif ! systemctl is-active --quiet mnt-homeserver.mount; then
+        systemctl stop mnt-homeserver.automount
+      fi
+    '';
+  };
+
+  systemd.timers.homeserver-automount-gate = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "15s";
+      OnUnitActiveSec = "30s";
+      AccuracySec = "5s";
+    };
+  };
+
+  # homeserver:/home/can — sunucunun ev dizini.
+  #
+  # NFS değil SSHFS: sunucunun tek NFS export'u tüm 192.168.1.0/24'e açık ve
+  # all_squash ile uid 1000'e eşleniyor. Ev dizini SSH anahtarları, git
+  # kimlik bilgileri ve yapılandırma deposu içeriyor; onu aynı kimlik
+  # doğrulamasız export'a koymak LAN'daki herkese okuma hakkı verirdi.
+  # SSHFS kimlik doğrulamalı ve şifreli, ekstra port açmıyor.
+  #
+  # Bağlamayı systemd (root) yapıyor, bu yüzden anahtar ve known_hosts
+  # açıkça veriliyor — root'un kendi ~/.ssh'ı kullanılmıyor.
+  fileSystems."/mnt/homeserver" = {
+    device = "can@192.168.1.3:/home/can";
+    fsType = "sshfs";
+    options = [
+      "x-systemd.automount"
+      "x-systemd.idle-timeout=600"
+      "x-systemd.mount-timeout=10"
+      "noauto"
+      "_netdev"
+      # allow_other: bağlamayı root yapıyor, erişecek olan `can`.
+      # uid/gid iki tarafta da 1000/100, bu yüzden eşleme gerekmiyor.
+      "allow_other"
+      "default_permissions"
+      "reconnect"
+      "IdentityFile=/home/can/.ssh/homeserver-termius-ed25519"
+      "IdentitiesOnly=yes"
+      "UserKnownHostsFile=/etc/ssh/ssh_known_hosts"
+      "StrictHostKeyChecking=yes"
+      # /mnt/storage ile aynı gerekçe: sunucu kapalıyken bağlama denemesi
+      # dakikalarca sürmesin, saniyeler içinde hataya düşsün.
+      "ConnectTimeout=5"
+      "ServerAliveInterval=15"
+      "ServerAliveCountMax=3"
+      # LAN'da sıkıştırma yavaşlatır.
+      "Compression=no"
+    ];
+  };
+
+  # mount.sshfs helper'ının bağlama sırasında bulunabilmesi için.
+  system.fsPackages = [ pkgs.sshfs ];
+
+  # StrictHostKeyChecking=yes ile bağlama, root'un TOFU yapamayacağı için
+  # host anahtarını deklaratif tutuyor.
+  programs.ssh.knownHosts.homeserver = {
+    hostNames = [ "192.168.1.3" "homeserver" ];
+    publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII/ZQWYDyspWfn+EiCd5QYzv0lHPU2+jdc+yd+3uG8Bp";
+  };
 }
