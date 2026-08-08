@@ -12,6 +12,48 @@
         backend = "wpa_supplicant";
         powersave = true; # pilde tasarruf
       };
+
+      # Tenda 5 GHz'de istemciden LAN'a giden DHCP Discover paketlerini
+      # geçirmiyor; Pi-hole kirayı hiç görmüyor, o yüzden bu SSID'de DHCP
+      # kullanılamaz. 2.4 GHz (sudo) sorunsuz kira alıyor, orası DHCP kalıyor.
+      #
+      # Ağ geçidi bilerek .1 değil .3 (homeserver): PIA seçici tünele yalnız
+      # .3 üzerinden çıkan istemciler giriyor.
+      ensureProfiles.profiles.sudo_5G = {
+        connection = {
+          id = "sudo_5G";
+          type = "wifi";
+          permissions = "user:can:;";
+        };
+
+        wifi = {
+          mode = "infrastructure";
+          ssid = "sudo_5G";
+        };
+
+        # psk-flags=1: ortak anahtar burada değil, kullanıcı anahtarlığında
+        # (KWallet) duruyor ve ilk bağlantıda bir kez sorulur. Parolayı da
+        # deklaratif istersen ensureProfiles.environmentFiles ile bir env
+        # dosyası verip buraya psk = "$SUDO_5G_PSK" yaz — ama o dosya git
+        # dışında kalmalı.
+        wifi-security = {
+          key-mgmt = "wpa-psk";
+          psk-flags = 1;
+        };
+
+        ipv4 = {
+          method = "manual";
+          address1 = "192.168.1.2/24";
+          gateway = "192.168.1.3";
+          dns = "192.168.1.3;";
+          ignore-auto-dns = true;
+        };
+
+        ipv6 = {
+          method = "auto";
+          addr-gen-mode = "stable-privacy";
+        };
+      };
     };
 
     # Plasma'nın kendi NetworkManager eklentisi (plasma-nm) var, ayrı bir tepsi
